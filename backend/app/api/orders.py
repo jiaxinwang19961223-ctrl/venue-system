@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.order import Order, OrderType, OrderStatus
 from app.models.user import User, UserRole
+from app.models.member import Member
 from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/orders", tags=["订单管理"])
@@ -81,7 +82,9 @@ def list_orders(
         {"id": o.id, "order_no": o.order_no, "order_type": o.order_type.value,
          "status": o.status.value, "book_date": str(o.book_date.date()) if o.book_date else None,
          "start_time": o.start_time, "end_time": o.end_time,
-         "paid_amount": o.paid_amount, "payment_method": o.payment_method}
+         "field_id": o.field_id,
+         "paid_amount": o.paid_amount, "payment_method": o.payment_method,
+         "name": o.member.name if o.member else None}
         for o in orders
     ]}
 
@@ -103,9 +106,15 @@ def update_order_status(
         if user.role not in [UserRole.CORE_MANAGEMENT, UserRole.MANAGER]:
             raise HTTPException(status_code=403, detail="仅管理层可取消/退款")
 
+        # 自动退款：余额支付 → 退回余额（累计消费不扣回）
+        if order.member_id and order.payment_method == "card" and order.paid_amount > 0:
+            member = db.query(Member).get(order.member_id)
+            if member:
+                member.balance += order.paid_amount
+
     order.status = status
     db.commit()
-    return {"message": f"订单状态已更新为{status.value}"}
+    return {"message": f"订单状态已更新为{status.value}{'，已退回余额' if order.payment_method == 'card' and order.paid_amount > 0 else ''}"}
 
 
 @router.get("/{order_id}")

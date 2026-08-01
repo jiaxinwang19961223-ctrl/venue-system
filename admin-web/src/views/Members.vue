@@ -26,7 +26,7 @@
         <template #default="{ row }">¥{{ (row.total_recharge || 0).toFixed(2) }}</template>
       </el-table-column>
       <el-table-column prop="total_consumption" label="累计消费" width="100">
-        <template #default="{ row }">¥{{ (row.total_consumption || 0).toFixed(2) }}</template>
+        <template #default="{ row }">¥{{ Math.abs(row.total_consumption || 0).toFixed(2) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
