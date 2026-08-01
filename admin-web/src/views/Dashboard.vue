@@ -88,15 +88,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { getVenues, getFields, getMembers, getOrders } from '../api'
+import { useVenueStore } from '../stores/venue'
 
+const venueStore = useVenueStore()
 const venueStats = ref([])
 
-onMounted(async () => {
+async function load() {
   try {
     const vRes = await getVenues()
-    const venues = vRes.venues || []
+    const allVenues = vRes.venues || []
+
+    // 如果选了单店，只显示该店
+    const venues = venueStore.currentId
+      ? allVenues.filter(v => v.id === venueStore.currentId)
+      : allVenues
 
     const stats = await Promise.all(venues.map(async (v) => {
       let field_count = 0, member_count = 0, order_today = 0, revenue_today = 0
@@ -136,7 +143,10 @@ onMounted(async () => {
 
     venueStats.value = stats
   } catch { /* */ }
-})
+}
+
+onMounted(load)
+watch(() => venueStore.currentId, load)
 </script>
 
 <style scoped>
