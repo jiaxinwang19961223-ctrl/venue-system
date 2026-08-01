@@ -115,7 +115,10 @@ async function handleCreate() {
 function statusType(s) { return { pending: 'info', paid: 'warning', confirmed: 'success', checked_in: '', cancelled: 'danger', refunded: 'danger' }[s] || '' }
 function statusLabel(s) { return { pending: '待支付', paid: '已支付', confirmed: '已确认', checked_in: '已签到', cancelled: '已取消', refunded: '已退款' }[s] || s }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  setInterval(load, 10000) // 10秒自动刷新
+})
 watch(() => venueStore.currentId, () => { load() })
 </script>
 
