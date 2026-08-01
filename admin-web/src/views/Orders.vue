@@ -28,22 +28,12 @@
       <el-table-column label="消费时间" width="155">
         <template #default="{ row }">{{ row.created_at?.slice(0,16)?.replace('T',' ') }}</template>
       </el-table-column>
-      <el-table-column label="时段" width="110">
-        <template #default="{ row }">{{ row.start_time ? row.start_time + '-' + row.end_time : '—' }}</template>
-      </el-table-column>
       <el-table-column prop="paid_amount" label="金额" width="80">
         <template #default="{ row }">¥{{ row.paid_amount?.toFixed(2) }}</template>
       </el-table-column>
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="150">
-        <template #default="{ row }">
-          <el-button v-if="row.status === 'pending'" size="small" type="success" @click="changeStatus(row.id, 'confirmed')">确认</el-button>
-          <el-button v-if="row.status === 'confirmed'" size="small" type="warning" @click="changeStatus(row.id, 'checked_in')">签到</el-button>
-          <el-button v-if="['pending','paid','confirmed'].includes(row.status)" size="small" type="danger" @click="changeStatus(row.id, 'cancelled')">取消</el-button>
         </template>
       </el-table-column>
     </el-table>
