@@ -15,18 +15,18 @@
     </div>
 
     <el-table :data="orders" stripe>
-      <el-table-column prop="order_no" label="订单号" width="180" />
+      <el-table-column prop="order_no" label="订单号" width="170" />
       <el-table-column label="会员" width="100">
         <template #default="{ row }">{{ row.name || '散客' }}</template>
       </el-table-column>
-      <el-table-column prop="order_type" label="类型" width="80">
+      <el-table-column label="手机号" width="120">
+        <template #default="{ row }">{{ row.phone || '—' }}</template>
+      </el-table-column>
+      <el-table-column prop="order_type" label="类型" width="70">
         <template #default="{ row }">{{ { field_book: '场地', walk_in: '散客', card_recharge: '办卡', course_book: '课程' }[row.order_type] }}</template>
       </el-table-column>
-      <el-table-column prop="book_date" label="日期" width="110" />
-      <el-table-column label="时段" width="120">
-        <template #default="{ row }">{{ row.start_time }} - {{ row.end_time }}</template>
-      </el-table-column>
-      <el-table-column prop="paid_amount" label="金额" width="90">
+      <el-table-column prop="book_date" label="日期" width="100" />
+      <el-table-column prop="paid_amount" label="金额" width="80">
         <template #default="{ row }">¥{{ row.paid_amount?.toFixed(2) }}</template>
       </el-table-column>
       <el-table-column label="状态" width="90">

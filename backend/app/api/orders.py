@@ -84,7 +84,8 @@ def list_orders(
          "start_time": o.start_time, "end_time": o.end_time,
          "field_id": o.field_id,
          "paid_amount": o.paid_amount, "payment_method": o.payment_method,
-         "name": o.member.name if o.member else None}
+         "name": o.member.name if o.member else None,
+         "phone": o.member.phone if o.member else None}
         for o in orders
     ]}
 
