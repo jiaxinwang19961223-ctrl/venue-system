@@ -13,13 +13,9 @@
           <i class="ri-dashboard-line ri-lg"></i>
           <span>首页</span>
         </el-menu-item>
-        <el-menu-item index="/venues">
-          <i class="ri-building-2-line ri-lg"></i>
-          <span>场馆管理</span>
-        </el-menu-item>
-        <el-menu-item index="/members">
-          <i class="ri-vip-crown-line ri-lg"></i>
-          <span>会员管理</span>
+        <el-menu-item index="/face-checkin">
+          <i class="ri-camera-line ri-lg"></i>
+          <span>人脸签到</span>
         </el-menu-item>
         <el-menu-item index="/court-board">
           <i class="ri-grid-line ri-lg"></i>
@@ -29,17 +25,13 @@
           <i class="ri-bill-line ri-lg"></i>
           <span>订单管理</span>
         </el-menu-item>
+        <el-menu-item index="/members">
+          <i class="ri-vip-crown-line ri-lg"></i>
+          <span>会员管理</span>
+        </el-menu-item>
         <el-menu-item index="/card-types">
           <i class="ri-bank-card-line ri-lg"></i>
           <span>卡种管理</span>
-        </el-menu-item>
-        <el-menu-item index="/face-checkin">
-          <i class="ri-camera-line ri-lg"></i>
-          <span>人脸签到</span>
-        </el-menu-item>
-        <el-menu-item index="/courses" disabled>
-          <i class="ri-calendar-check-line ri-lg"></i>
-          <span>课程管理</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
