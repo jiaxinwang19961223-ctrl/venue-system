@@ -149,7 +149,7 @@
     <el-dialog title="办理会员卡" v-model="showIssueCardDialog" width="450px">
       <p><strong>会员：</strong>{{ rechargeMember?.name }}</p>
       <el-form :model="cardForm" label-width="80px">
-        <el-form-item label="卡种"><el-select v-model="cardForm.card_type_id" style="width:100%" @change="onCardTypeChange"><el-option v-for="ct in cardTypes" :key="ct.id" :label="`${ct.name} (¥${ct.price})`" :value="ct.id" /></el-select></el-form-item>
+        <el-form-item label="卡种"><el-select v-model="cardForm.card_type_id" style="width:100%" @change="onCardTypeChange"><el-option v-for="ct in cardTypes" :key="ct.id" :label="ct.name" :value="ct.id" /></el-select></el-form-item>
         <el-form-item label="售价"><el-input-number v-model="cardForm.price" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="生效"><el-date-picker v-model="cardForm.start_date" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
       </el-form>
