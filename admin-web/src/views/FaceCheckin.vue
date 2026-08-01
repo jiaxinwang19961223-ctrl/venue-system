@@ -188,8 +188,8 @@ async function startDetection() {
       ctx?.clearRect(0, 0, 400, 300)
 
       if (!result) {
-        detectedMember.value = null
-        noMatch.value = false
+        // 检测不到人脸时保留上次结果，不立即清除
+        if (!detectedMember.value) noMatch.value = false
         return
       }
 
@@ -219,10 +219,14 @@ async function startDetection() {
       // 匹配成功
       noMatch.value = false
       const memberId = parseInt(match.label.split('_')[0])
+      const prevId = detectedMember.value?.id
       detectedMember.value = members.value.find(m => m.id === memberId)
       const similarity = ((1 - match.distance) * 100).toFixed(1)
       matchDistance.value = `${similarity}%`
-      Object.assign(checkinForm, { amount: 0, remark: '' })
+      // 只有换人才重置金额
+      if (prevId !== memberId) {
+        Object.assign(checkinForm, { amount: 0, remark: '' })
+      }
 
       // 绿色框
       ctx.strokeStyle = '#67C23A'
@@ -234,7 +238,7 @@ async function startDetection() {
       ctx.fillText(match.label.split('_')[1], box.x, box.y - 8)
 
     } catch { /* skip frame */ }
-  }, 1500) // 1.5秒检测一次
+  }, 3000) // 3秒检测一次，避免频繁重置
 }
 
 function stopDetection() {
