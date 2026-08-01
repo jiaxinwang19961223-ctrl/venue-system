@@ -10,6 +10,12 @@
     </div>
 
     <el-table :data="members" stripe size="small" style="min-width:1100px">
+      <el-table-column label="照片" width="55" fixed>
+        <template #default="{ row }">
+          <el-avatar v-if="row.face_image" :src="row.face_image" :size="36" shape="square" />
+          <el-avatar v-else :size="36" shape="square" style="background:#C0C4CC"><i class="ri-user-line"></i></el-avatar>
+        </template>
+      </el-table-column>
       <el-table-column prop="name" label="姓名" width="80" fixed />
       <el-table-column prop="phone" label="联系电话" width="130" />
       <el-table-column label="卡片类型" width="100">
