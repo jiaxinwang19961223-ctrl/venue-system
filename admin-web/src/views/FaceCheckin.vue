@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { getMembers } from '../api'
 import api from '../api'
 import * as faceapi from 'face-api.js'
@@ -96,7 +96,7 @@ const modelError = ref(false)
 const matchDistance = ref('')
 const labeledDescriptors = ref([])
 
-const checkinForm = ref({ amount: 0, remark: '' })
+const checkinForm = reactive({ amount: 0, remark: '' })
 let stream = null
 let detectionInterval = null
 let faceMatcher = null
@@ -222,7 +222,7 @@ async function startDetection() {
       detectedMember.value = members.value.find(m => m.id === memberId)
       const similarity = ((1 - match.distance) * 100).toFixed(1)
       matchDistance.value = `${similarity}%`
-      checkinForm.value = { amount: 0, remark: '' }
+      Object.assign(checkinForm, { amount: 0, remark: '' })
 
       // 绿色框
       ctx.strokeStyle = '#67C23A'
@@ -254,21 +254,21 @@ async function doCheckin() {
   try {
     const res = await api.post(`/members/${m.id}/consume`, {
       venue_id: venueStore.currentId,
-      amount: checkinForm.value.amount || 0,
+      amount: checkinForm.amount || 0,
       use_card: false,
-      remark: checkinForm.value.remark || '人脸签到',
+      remark: checkinForm.remark || '人脸签到',
     })
     checkins.value.unshift({
       id: Date.now(),
       name: m.name,
       time: new Date().toLocaleTimeString(),
-      type_label: `¥${(checkinForm.value.amount || 0).toFixed(2)} ${checkinForm.value.remark || '签到'}`,
+      type_label: `¥${(checkinForm.amount || 0).toFixed(2)} ${checkinForm.remark || '签到'}`,
     })
     if (res.balance !== undefined) {
       m.balance = res.balance
       m.total_consumption = res.total_consumption
     }
-    ElMessage.success(`${m.name} 扣费 ¥${(checkinForm.value.amount || 0).toFixed(2)}`)
+    ElMessage.success(`${m.name} 扣费 ¥${(checkinForm.amount || 0).toFixed(2)}`)
   } catch { /* */ }
 }
 
