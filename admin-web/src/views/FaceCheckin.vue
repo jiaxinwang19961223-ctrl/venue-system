@@ -190,7 +190,7 @@ async function startDetection() {
 
       if (!result) {
         if (!detectedMember.value) noMatch.value = false
-        detectTimer = setTimeout(detectOnce, 800) // 没人 → 快扫
+        detectTimer = setTimeout(detectOnce, 1500)
         return
       }
 
@@ -215,7 +215,7 @@ async function startDetection() {
         return
       }
 
-      // 匹配成功 → 锁定，不再检测
+      // 匹配成功
       noMatch.value = false
       const memberId = parseInt(match.label.split('_')[0])
       const prevId = detectedMember.value?.id
@@ -224,6 +224,9 @@ async function startDetection() {
       matchDistance.value = `${similarity}%`
       if (prevId !== memberId) {
         Object.assign(checkinForm, { amount: 0, remark: '' })
+        detectTimer = setTimeout(detectOnce, 1500) // 换人 → 恢复快扫
+      } else {
+        detectTimer = setTimeout(detectOnce, 2000) // 同人 → 慢扫
       }
 
       ctx.strokeStyle = '#67C23A'
@@ -232,7 +235,6 @@ async function startDetection() {
       ctx.fillStyle = '#67C23A'
       ctx.font = '14px sans-serif'
       ctx.fillText(match.label.split('_')[1], box.x, box.y - 8)
-      // 识别成功后不再继续检测，保持稳定
 
     } catch { detectTimer = setTimeout(detectOnce, 2000) }
   }
