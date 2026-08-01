@@ -74,7 +74,7 @@
             <p class="face-title"><i class="ri-camera-line"></i> 人脸录入</p>
             <div class="face-camera-mini">
               <video ref="videoRef" autoplay playsinline width="180" height="135"></video>
-              <canvas ref="canvasRef" width="180" height="135" style="display:none"></canvas>
+              <canvas ref="canvasRef" width="180" height="135" style="position:absolute;top:-9999px;left:-9999px"></canvas>
               <img v-if="facePreview" :src="facePreview" class="face-preview-mini" />
             </div>
             <div class="face-btns">
@@ -97,7 +97,7 @@
       <p><strong>会员：</strong>{{ retakeMember?.name }}</p>
       <div class="face-camera-mini" style="width:200px;height:150px;margin:10px auto">
         <video ref="retakeVideoRef" autoplay playsinline width="200" height="150"></video>
-        <canvas ref="retakeCanvasRef" width="200" height="150" style="display:none"></canvas>
+        <canvas ref="retakeCanvasRef" width="200" height="150" style="position:absolute;top:-9999px;left:-9999px"></canvas>
         <img v-if="retakePreview" :src="retakePreview" class="face-preview-mini" style="width:200px;height:150px" />
       </div>
       <div style="text-align:center;margin-top:10px">
@@ -250,8 +250,13 @@ async function doCapture(videoEl, canvasEl, setPreview, setDescriptor, setStatus
   const video = videoEl
   const canvas = canvasEl
   if (!canvas || !video) { setStatus('摄像头未就绪'); return }
-  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height)
-  const img = canvas.toDataURL('image/jpeg', 0.8)
+  if (video.readyState < 2) { setStatus('摄像头未就绪，请稍等'); return }
+
+  const ctx = canvas.getContext('2d')
+  canvas.width = video.videoWidth || 180
+  canvas.height = video.videoHeight || 135
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+  const img = canvas.toDataURL('image/jpeg', 0.85)
   setPreview(img)
   if (s) { s.getTracks().forEach(t => t.stop()) }
 
