@@ -257,7 +257,7 @@ async function doCapture(videoEl, canvasEl, setPreview, setDescriptor, setStatus
 
   setStatus('正在提取人脸特征...')
   try {
-    const d = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.4 }))
+    const d = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.4 }))
       .withFaceLandmarks(true).withFaceDescriptor()
     if (d) {
       setDescriptor(JSON.stringify(Array.from(d.descriptor)))
