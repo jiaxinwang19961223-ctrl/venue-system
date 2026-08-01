@@ -42,8 +42,9 @@ class MemberLevelCreate(BaseModel):
 
 class CardCreate(BaseModel):
     member_id: int
-    card_type: str  # times/month/year
+    card_type: str
     total_times: int = 0
+    stored_value: float = 0
     price: float = 0
     start_date: Optional[str] = None
     end_date: Optional[str] = None

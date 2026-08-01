@@ -61,6 +61,11 @@
             </el-form-item>
             <el-form-item label="生日"><el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
             <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" rows="2" /></el-form-item>
+            <el-form-item label="办卡" v-if="!editingId">
+              <el-select v-model="form.card_type_id" clearable placeholder="选卡种（可选）" style="width:100%">
+                <el-option v-for="ct in cardTypes" :key="ct.id" :label="ct.name" :value="ct.id" />
+              </el-select>
+            </el-form-item>
           </el-form>
         </el-col>
         <!-- 右侧：人脸拍照 -->
@@ -307,7 +312,12 @@ async function saveRetake() {
 }
 
 // ──── CRUD ────
-function showAdd() { editingId.value = null; form.value = { name: '', phone: '', gender: '', birthday: '', remark: '', venue_id: venueStore.currentId }; facePreview.value = null; faceDescriptor.value = null; faceStatus.value = ''; faceOk.value = false; showDialog.value = true }
+function showAdd() {
+  editingId.value = null
+  form.value = { name: '', phone: '', gender: '', birthday: '', remark: '', venue_id: venueStore.currentId || 1, card_type_id: null }
+  facePreview.value = null; faceDescriptor.value = null; faceStatus.value = ''; faceOk.value = false
+  showDialog.value = true
+}
 async function load() { try { members.value = (await getMembers({ keyword: keyword.value, venue_id: venueStore.currentId })).members || [] } catch { /* */ } }
 async function search() { keyword.value = keyword.value.trim(); await load() }
 
@@ -317,8 +327,32 @@ async function handleSave() {
     data.face_image = facePreview.value
     data.face_descriptor = faceDescriptor.value || null
   }
+  const cardTypeId = data.card_type_id
+  delete data.card_type_id  // 不传给 member API
+
   try {
-    if (editingId.value) { await updateMember(editingId.value, data) } else { await createMember(data) }
+    let memberId = editingId.value
+    if (editingId.value) {
+      await updateMember(editingId.value, data)
+    } else {
+      const res = await createMember(data)
+      memberId = res.id
+    }
+    // 新建时如果选了卡种，自动办卡
+    if (!editingId.value && cardTypeId) {
+      const ct = cardTypes.value.find(t => t.id === cardTypeId)
+      if (ct) {
+        const end = new Date(); end.setDate(end.getDate() + ct.valid_days)
+        try {
+          await createCard({
+            member_id: memberId, card_type: ct.category,
+            total_times: ct.total_times, stored_value: ct.total_times, price: ct.price,
+            start_date: new Date().toISOString().slice(0, 10),
+            end_date: end.toISOString().slice(0, 10),
+          })
+        } catch { /* */ }
+      }
+    }
     showDialog.value = false; stopCamera(); await load(); ElMessage.success('保存成功')
   } catch { /* */ }
 }
