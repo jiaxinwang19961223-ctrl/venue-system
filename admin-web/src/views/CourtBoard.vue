@@ -128,17 +128,17 @@
             <el-radio label="wechat">微信</el-radio>
             <el-radio label="cash">现金</el-radio>
             <el-radio label="balance" :disabled="!foundMember">会员余额</el-radio>
-            <el-radio label="card_times" :disabled="!foundMember || !memberCards.length">次卡扣次</el-radio>
+            <el-radio label="card_stored" :disabled="!foundMember || !memberCards.length">储值卡扣费</el-radio>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item v-if="orderForm.payment_method === 'card_times'" label="选择次卡">
-          <el-select v-model="orderForm.card_id" style="width:100%" placeholder="选择要扣次的卡">
-            <el-option v-for="c in memberCards" :key="c.id" :label="`${c.card_type} 剩余${c.total_times - c.used_times}次`" :value="c.id" />
+        <el-form-item v-if="orderForm.payment_method === 'card_stored'" label="选择储值卡">
+          <el-select v-model="orderForm.card_id" style="width:100%" placeholder="选择储值卡">
+            <el-option v-for="c in memberCards" :key="c.id" :label="`储值卡 余额¥${((c.stored_value||0)-(c.used_value||0)).toFixed(2)}`" :value="c.id" />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="实收金额" v-if="orderForm.payment_method !== 'card_times'">
+        <el-form-item label="实收金额" v-if="orderForm.payment_method !== 'card_stored'">
           <el-input-number v-model="orderForm.paid_amount" :min="0" :precision="2" style="width:100%" />
           <span v-if="orderForm.payment_method === 'balance' && foundMember" style="margin-left:8px;color:#909399;font-size:12px;white-space:nowrap">
             扣后余额 ¥{{ Math.max(0, (foundMember.balance || 0) - orderForm.paid_amount).toFixed(2) }}
@@ -316,7 +316,7 @@ function onCustomerTypeChange() {
 }
 
 function onPaymentChange(method) {
-  if (method === 'card_times') orderForm.value.paid_amount = 0
+  if (method === 'card_stored') orderForm.value.paid_amount = selectedField.value?.price_per_hour || 0
 }
 
 function onPhoneInput() {
@@ -334,7 +334,7 @@ async function searchMember() {
     if (foundMember.value) {
       try {
         const cr = await api.get(`/members/${foundMember.value.id}/cards`)
-        memberCards.value = (cr.cards || []).filter(c => c.is_active && c.total_times > c.used_times)
+        memberCards.value = (cr.cards || []).filter(c => c.is_active && ((c.stored_value||0) > (c.used_value||0) || c.total_times > c.used_times))
       } catch { memberCards.value = [] }
     } else {
       // 没找到会员 → 自动切散客
@@ -362,23 +362,23 @@ async function submitQuickOrder(status) {
           })
         } catch { /* */ }
       }
-      // 次卡扣次
-      if (paymentMethod === 'card_times') {
+      // 储值卡扣费
+      if (paymentMethod === 'card_stored') {
         try {
           await api.post(`/members/${memberId}/consume`, {
+            amount: orderForm.value.paid_amount,
             use_card: true,
             card_id: orderForm.value.card_id,
             remark: `场租 ${selectedField.value?.name} ${date.value} ${selectedSlot.value}`,
           })
         } catch { /* */ }
-        orderForm.value.paid_amount = 0
         paymentMethod = 'card'
       }
     }
 
     const remark = [
       customerType.value === 'walkin' ? `散客:${orderForm.value.customer_name || orderForm.value.phone}` : '',
-      orderForm.value.payment_method === 'card_times' ? '次卡扣次' : '',
+      orderForm.value.payment_method === 'card_stored' ? '储值卡扣费' : '',
       orderForm.value.remark,
     ].filter(Boolean).join(' | ')
 

@@ -188,16 +188,25 @@ def member_consume(member_id: int, data: ConsumeRequest, user: User = Depends(ge
     payment_method = "card"
 
     if data.use_card and data.card_id:
-        # 次卡扣次
         card = db.query(MemberCard).filter(MemberCard.id == data.card_id, MemberCard.member_id == member_id).first()
         if not card:
             raise HTTPException(status_code=404, detail="会员卡不存在")
-        if card.used_times >= card.total_times:
-            raise HTTPException(status_code=400, detail="卡次数已用完")
         if not card.is_active:
             raise HTTPException(status_code=400, detail="卡已失效")
-        card.used_times += 1
-        paid_amount = 0
+
+        if card.card_type == "stored":
+            # 储值卡：扣自定义金额
+            remaining = (card.stored_value or 0) - (card.used_value or 0)
+            if remaining < data.amount:
+                raise HTTPException(status_code=400, detail=f"储值卡余额不足（剩余: ¥{remaining:.2f}）")
+            card.used_value = (card.used_value or 0) + data.amount
+            paid_amount = data.amount
+        else:
+            # 次卡/月卡：扣次
+            if card.used_times >= card.total_times:
+                raise HTTPException(status_code=400, detail="卡次数已用完")
+            card.used_times += 1
+            paid_amount = 0
     else:
         # 余额扣费
         if member.balance < data.amount:

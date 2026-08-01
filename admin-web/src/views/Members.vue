@@ -113,11 +113,19 @@
         <el-form-item label="扣费方式">
           <el-radio-group v-model="consumeForm.use_card">
             <el-radio :value="false">余额扣费</el-radio>
-            <el-radio :value="true">次卡扣次</el-radio>
+            <el-radio :value="true">储值卡扣费</el-radio>
           </el-radio-group>
         </el-form-item>
         <template v-if="consumeForm.use_card">
-          <el-form-item label="选择卡"><el-select v-model="consumeForm.card_id" style="width:100%"><el-option v-for="c in consumeCards" :key="c.id" :label="`${c.card_type} 剩${c.total_times - c.used_times}次`" :value="c.id" /></el-select></el-form-item>
+          <el-form-item label="选择卡">
+            <el-select v-model="consumeForm.card_id" style="width:100%">
+              <el-option v-for="c in consumeCards" :key="c.id" :label="cardLabel(c)" :value="c.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="扣费金额" v-if="selectedCardType === 'stored'">
+            <el-input-number v-model="consumeForm.amount" :min="1" :max="selectedCardRemaining" :precision="2" style="width:100%" />
+            <span style="margin-left:8px;font-size:12px;color:#909399">余额 ¥{{ selectedCardRemaining }}</span>
+          </el-form-item>
         </template>
         <template v-else>
           <el-form-item label="金额"><el-input-number v-model="consumeForm.amount" :min="0" :precision="2" style="width:100%" /></el-form-item>
@@ -164,7 +172,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getMembers, getMember, createMember, updateMember, getMemberCards, createCard } from '../api'
 import api from '../api'
 import * as faceapi from 'face-api.js'
@@ -326,15 +334,30 @@ function showIssueCard(m) { rechargeMember.value = m; cardForm.value = { card_ty
 function onCardTypeChange(id) { const ct = cardTypes.value.find(t=>t.id===id); if(ct){ cardForm.value.price=ct.price; cardForm.value.total_times=ct.total_times; cardForm.value.card_type=ct.category; const e=new Date(); e.setDate(e.getDate()+ct.valid_days); cardForm.value.end_date=e.toISOString().slice(0,10) } }
 async function handleIssueCard() { try { await createCard({ member_id:rechargeMember.value.id, card_type: cardForm.value.card_type||'times', total_times:cardForm.value.total_times, price:cardForm.value.price, start_date:cardForm.value.start_date, end_date:cardForm.value.end_date }); showIssueCardDialog.value=false; ElMessage.success('办卡成功') } catch { /* */ } }
 
-async function showConsume(m) { consumeMember.value=m; consumeForm.value={amount:0,use_card:false,card_id:null,remark:''}; try{consumeCards.value=(await getMemberCards(m.id)).cards?.filter(c=>c.is_active&&c.total_times>c.used_times)||[]}catch{consumeCards.value=[]}; showConsumeDialog.value=true }
+async function showConsume(m) { consumeMember.value=m; consumeForm.value={amount:0,use_card:false,card_id:null,remark:''}; try{consumeCards.value=(await getMemberCards(m.id)).cards?.filter(c=>c.is_active&&((c.stored_value||0)>(c.used_value||0)||c.total_times>c.used_times))||[]}catch{consumeCards.value=[]}; showConsumeDialog.value=true }
 async function handleConsume() { try { await api.post(`/members/${consumeMember.value.id}/consume`, consumeForm.value); showConsumeDialog.value=false; await load(); ElMessage.success('扣费成功') } catch { /* */ } }
 
 async function showOrders(m) { consumeMember.value=m; try{memberOrders.value=(await api.get(`/members/${m.id}/orders`)).orders||[]}catch{memberOrders.value=[]}; showOrdersDialog.value=true }
 
 function cardTypeLabel(types) {
   if (!types) return ''
-  return types.split(',').map(t => ({ times: '次卡', month: '月卡', year: '年卡' }[t.trim()] || t)).join('/')
+  return types.split(',').map(t => ({ stored: '储值卡', times: '次卡', month: '月卡', year: '年卡' }[t.trim()] || t)).join('/')
 }
+
+function cardLabel(c) {
+  if (c.card_type === 'stored') return `储值卡 余额¥${((c.stored_value||0) - (c.used_value||0)).toFixed(2)}`
+  return `${c.card_type} 剩${c.total_times - c.used_times}次`
+}
+
+const selectedCardType = computed(() => {
+  const c = consumeCards.value.find(c => c.id === consumeForm.value.card_id)
+  return c?.card_type || ''
+})
+const selectedCardRemaining = computed(() => {
+  const c = consumeCards.value.find(c => c.id === consumeForm.value.card_id)
+  if (!c) return 0
+  return (c.stored_value || 0) - (c.used_value || 0)
+})
 
 onMounted(async () => {
   try { cardTypes.value = (await api.get('/card-types')).card_types || [] } catch { /* */ }

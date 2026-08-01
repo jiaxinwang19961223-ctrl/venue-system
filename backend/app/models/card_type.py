@@ -9,9 +9,9 @@ class CardType(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False, comment="卡种名称（如：羽毛球10次卡、篮球月卡）")
-    category = Column(String(30), default="times", comment="类别: times(次卡)/month(月卡)/year(年卡)/custom(自定义)")
+    category = Column(String(30), default="stored", comment="类别: stored(储值卡)/month(月卡)/season(季卡)/year(年卡)/custom(自定义)")
 
-    total_times = Column(Integer, default=0, comment="总次数（次卡用）")
+    total_times = Column(Integer, default=0, comment="总次数（储值卡=储值金额）")
     price = Column(Float, default=0, comment="售价")
     valid_days = Column(Integer, default=30, comment="有效天数")
 

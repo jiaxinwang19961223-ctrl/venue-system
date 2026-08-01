@@ -15,7 +15,9 @@
           </div>
           <div class="card-price">¥{{ ct.price }}</div>
           <div class="card-meta">
-            <span v-if="ct.total_times"><i class="ri-repeat-line"></i> {{ ct.total_times }}次</span>
+            <span v-if="ct.category === 'stored' && ct.total_times"><i class="ri-money-dollar-circle-line"></i> 储值¥{{ ct.total_times }}</span>
+            <span v-else-if="ct.total_times"><i class="ri-repeat-line"></i> {{ ct.total_times }}次</span>
+            <span v-else><i class="ri-infinity-line"></i> 不限次</span>
             <span><i class="ri-time-line"></i> {{ formatValidDays(ct.valid_days) }}</span>
           </div>
           <div class="card-desc" v-if="ct.description">{{ ct.description }}</div>
@@ -39,7 +41,7 @@
         </el-form-item>
         <el-form-item label="卡类型">
           <el-radio-group v-model="form.category">
-            <el-radio-button label="times">次卡</el-radio-button>
+            <el-radio-button label="stored">储值卡</el-radio-button>
             <el-radio-button label="month">月卡</el-radio-button>
             <el-radio-button label="season">季卡</el-radio-button>
             <el-radio-button label="year">年卡</el-radio-button>
@@ -53,20 +55,18 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="有效期" v-if="form.category !== 'times'">
-              <el-select v-model="form.valid_days" style="width:100%">
+            <el-form-item label="有效期">
+              <span v-if="form.category === 'stored'" style="color:#909399">固定3年（1095天）</span>
+              <el-select v-else v-model="form.valid_days" style="width:100%">
                 <el-option v-for="d in validOptions" :key="d.value" :label="d.label" :value="d.value" />
               </el-select>
             </el-form-item>
-            <el-form-item label="有效天数" v-else>
-              <el-input-number v-model="form.valid_days" :min="1" style="width:100%" controls-position="right" />
-            </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item v-if="form.category === 'times' || form.category === 'custom'" label="总次数">
-          <el-input-number v-model="form.total_times" :min="1" :max="999" style="width:100%" controls-position="right" />
+        <el-form-item v-if="form.category === 'stored' || form.category === 'custom'" label="储值金额">
+          <el-input-number v-model="form.total_times" :min="1" :step="100" style="width:100%" controls-position="right" />
         </el-form-item>
-        <el-form-item v-if="form.category !== 'times'" label="总次数" >
+        <el-form-item v-if="!['stored','custom'].includes(form.category)" label="次数">
           <span style="color:#909399">不限次数</span>
         </el-form-item>
         <el-form-item label="描述">
@@ -99,8 +99,8 @@ const validOptions = [
   { label: '2年', value: 730 },
 ]
 
-function categoryLabel(c) { return { times: '次卡', month: '月卡', season: '季卡', year: '年卡', custom: '定制' }[c] || c }
-function tagType(c) { return { times: 'success', month: '', season: 'warning', year: 'danger', custom: 'info' }[c] || '' }
+function categoryLabel(c) { return { stored: '储值卡', month: '月卡', season: '季卡', year: '年卡', custom: '定制' }[c] || c }
+function tagType(c) { return { stored: 'success', month: '', season: 'warning', year: 'danger', custom: 'info' }[c] || '' }
 function formatValidDays(d) {
   if (d >= 365) return `${Math.floor(d/365)}年`
   if (d >= 30) return `${Math.floor(d/30)}个月`
@@ -113,7 +113,7 @@ async function load() {
 
 function showAdd() {
   editingId.value = null
-  form.value = { name: '', category: 'times', total_times: 10, price: 0, valid_days: 30, description: '' }
+  form.value = { name: '', category: 'stored', total_times: 500, price: 500, valid_days: 1095, description: '' }
   showDialog.value = true
 }
 
