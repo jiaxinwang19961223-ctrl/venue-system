@@ -3,9 +3,6 @@
     <div class="page-header">
       <h3><i class="ri-grid-line"></i> 包场看板</h3>
       <div class="actions">
-        <el-select v-model="venueId" @change="load" style="width:160px">
-          <el-option v-for="v in venues" :key="v.id" :label="v.name" :value="v.id" />
-        </el-select>
         <div class="date-nav">
           <el-button circle size="small" @click="prevDay"><i class="ri-arrow-left-s-line"></i></el-button>
           <el-date-picker v-model="pickerDate" type="date" value-format="YYYY-MM-DD" style="width:155px" @change="onDatePicked" :clearable="false" />
@@ -167,15 +164,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { getVenues, getFields, getOrders, getMembers, createOrder } from '../api'
 import api from '../api'
+import { useVenueStore } from '../stores/venue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+const venueStore = useVenueStore()
 const venues = ref([])
 const fields = ref([])
 const bookings = ref([])
-const venueId = ref(1)
+const venueId = computed(() => venueStore.currentId)
 const date = ref(new Date().toISOString().slice(0, 10))
 const loading = ref(false)
 const pickerDate = ref(new Date().toISOString().slice(0, 10))
@@ -193,7 +192,7 @@ const searched = ref(false)
 const searching = ref(false)
 const submitting = ref(false)
 const customerType = ref('member')
-const orderForm = ref({ phone: '', customer_name: '', paid_amount: 0, payment_method: 'wechat', venue_id: 1, order_type: 'field_book', remark: '', card_id: null })
+const orderForm = ref({ phone: '', customer_name: '', paid_amount: 0, payment_method: 'wechat', venue_id: venueStore.currentId, order_type: 'field_book', remark: '', card_id: null })
 
 const endSlot = computed(() => {
   if (!selectedSlot.value) return ''
@@ -402,9 +401,11 @@ async function submitQuickOrder(status) {
 }
 
 onMounted(async () => {
-  try { const v = await getVenues(); venues.value = v.venues || []; if (venues.value.length) venueId.value = venues.value[0].id } catch { /* */ }
+  await venueStore.load()
   await load()
 })
+
+watch(() => venueStore.currentId, () => { load() })
 </script>
 
 <style scoped>

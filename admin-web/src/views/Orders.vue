@@ -69,22 +69,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { getOrders, createOrder, updateOrderStatus } from '../api'
+import { useVenueStore } from '../stores/venue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+const venueStore = useVenueStore()
 const orders = ref([])
 const filterStatus = ref('')
 const showCreateDialog = ref(false)
 
 const orderForm = ref({
-  venue_id: 1, order_type: 'field_book', book_date: '',
+  venue_id: venueStore.currentId, order_type: 'field_book', book_date: '',
   start_time: '', end_time: '', paid_amount: 0, payment_method: 'wechat', remark: ''
 })
 
 async function load() {
   try {
-    orders.value = (await getOrders({ status: filterStatus.value || undefined })).orders || []
+    orders.value = (await getOrders({ status: filterStatus.value || undefined, venue_id: venueStore.currentId })).orders || []
   } catch { /* */ }
 }
 
@@ -96,7 +98,7 @@ async function changeStatus(id, status) {
   } catch { /* */ }
 }
 
-function showCreate() { orderForm.value = { venue_id: 1, order_type: 'field_book', book_date: '', start_time: '', end_time: '', paid_amount: 0, payment_method: 'wechat', remark: '' }; showCreateDialog.value = true }
+function showCreate() { orderForm.value = { venue_id: venueStore.currentId, order_type: 'field_book', book_date: '', start_time: '', end_time: '', paid_amount: 0, payment_method: 'wechat', remark: '' }; showCreateDialog.value = true }
 
 async function handleCreate() {
   try {
@@ -111,6 +113,7 @@ function statusType(s) { return { pending: 'info', paid: 'warning', confirmed: '
 function statusLabel(s) { return { pending: '待支付', paid: '已支付', confirmed: '已确认', checked_in: '已签到', cancelled: '已取消', refunded: '已退款' }[s] || s }
 
 onMounted(load)
+watch(() => venueStore.currentId, () => { load() })
 </script>
 
 <style scoped>

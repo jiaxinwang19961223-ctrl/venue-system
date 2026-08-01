@@ -44,8 +44,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getVenues, getMembers, getOrders } from '../api'
+import { getVenues, getMembers, getOrders, getFields } from '../api'
+import { useVenueStore } from '../stores/venue'
 
+const venueStore = useVenueStore()
 const venues = ref([])
 const members = ref([])
 const orders = ref([])
@@ -55,13 +57,15 @@ onMounted(async () => {
   try {
     const [v, m, o] = await Promise.all([
       getVenues(),
-      getMembers(),
-      getOrders(),
+      getMembers({ venue_id: venueStore.currentId }),
+      getOrders({ venue_id: venueStore.currentId }),
     ])
     venues.value = v.venues || []
     members.value = m.members || []
     orders.value = o.orders || []
-    fields.value = venues.value.reduce((sum, v) => sum + (v.fields?.length || 0), 0)
+    if (venueStore.currentId) {
+      try { const f = await getFields(venueStore.currentId); fields.value = (f.fields || []).length } catch { /* */ }
+    }
   } catch { /* */ }
 })
 </script>

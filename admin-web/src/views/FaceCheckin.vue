@@ -80,8 +80,10 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { getMembers } from '../api'
 import api from '../api'
 import * as faceapi from 'face-api.js'
+import { useVenueStore } from '../stores/venue'
 import { ElMessage } from 'element-plus'
 
+const venueStore = useVenueStore()
 const videoRef = ref(null)
 const overlayRef = ref(null)
 const detecting = ref(false)
@@ -117,7 +119,7 @@ async function loadModels() {
 async function buildFaceMatcher() {
   // 加载所有有描述符的会员
   try {
-    const res = await getMembers({})
+    const res = await getMembers({ venue_id: venueStore.currentId })
     members.value = (res.members || []).filter(m => m.face_descriptor && m.face_image)
   } catch { return }
 
@@ -242,6 +244,7 @@ async function doCheckin() {
   const m = detectedMember.value
   try {
     const res = await api.post(`/members/${m.id}/consume`, {
+      venue_id: venueStore.currentId,
       amount: checkinForm.value.amount || 0,
       use_card: false,
       remark: checkinForm.value.remark || '人脸签到',

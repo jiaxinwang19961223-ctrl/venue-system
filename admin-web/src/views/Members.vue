@@ -164,12 +164,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { getMembers, getMember, createMember, updateMember, getMemberCards, createCard } from '../api'
 import api from '../api'
 import * as faceapi from 'face-api.js'
+import { useVenueStore } from '../stores/venue'
 import { ElMessage } from 'element-plus'
 
+const venueStore = useVenueStore()
 const members = ref([])
 const cardTypes = ref([])
 const cards = ref([])
@@ -191,7 +193,7 @@ const consumeMember = ref(null)
 const retakeMember = ref(null)
 
 // 表单
-const form = ref({ name: '', phone: '', gender: '', birthday: '', remark: '', venue_id: 1 })
+const form = ref({ name: '', phone: '', gender: '', birthday: '', remark: '', venue_id: 0 })
 const rechargeForm = ref({ amount: 0, payment_method: 'wechat' })
 const consumeForm = ref({ amount: 0, use_card: false, card_id: null, remark: '' })
 const cardForm = ref({ card_type_id: null, total_times: 0, price: 0, start_date: '', end_date: '', member_id: 0, card_type: '' })
@@ -297,8 +299,8 @@ async function saveRetake() {
 }
 
 // ──── CRUD ────
-function showAdd() { editingId.value = null; form.value = { name: '', phone: '', gender: '', birthday: '', remark: '', venue_id: 1 }; facePreview.value = null; faceDescriptor.value = null; faceStatus.value = ''; faceOk.value = false; showDialog.value = true }
-async function load() { try { members.value = (await getMembers({ keyword: keyword.value })).members || [] } catch { /* */ } }
+function showAdd() { editingId.value = null; form.value = { name: '', phone: '', gender: '', birthday: '', remark: '', venue_id: venueStore.currentId }; facePreview.value = null; faceDescriptor.value = null; faceStatus.value = ''; faceOk.value = false; showDialog.value = true }
+async function load() { try { members.value = (await getMembers({ keyword: keyword.value, venue_id: venueStore.currentId })).members || [] } catch { /* */ } }
 async function search() { keyword.value = keyword.value.trim(); await load() }
 
 async function handleSave() {
@@ -340,6 +342,8 @@ onMounted(async () => {
   try { await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(M), faceapi.nets.faceLandmark68TinyNet.loadFromUri(M), faceapi.nets.faceRecognitionNet.loadFromUri(M)]) } catch { /* */ }
   await load()
 })
+
+watch(() => venueStore.currentId, () => { load() })
 </script>
 
 <style scoped>
