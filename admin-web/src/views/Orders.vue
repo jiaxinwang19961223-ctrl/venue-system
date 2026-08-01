@@ -25,7 +25,12 @@
       <el-table-column prop="order_type" label="类型" width="70">
         <template #default="{ row }">{{ { field_book: '场地', walk_in: '散客', card_recharge: '办卡', course_book: '课程' }[row.order_type] }}</template>
       </el-table-column>
-      <el-table-column prop="book_date" label="日期" width="100" />
+      <el-table-column label="消费时间" width="155">
+        <template #default="{ row }">{{ row.created_at?.slice(0,16)?.replace('T',' ') }}</template>
+      </el-table-column>
+      <el-table-column label="时段" width="110">
+        <template #default="{ row }">{{ row.start_time ? row.start_time + '-' + row.end_time : '—' }}</template>
+      </el-table-column>
       <el-table-column prop="paid_amount" label="金额" width="80">
         <template #default="{ row }">¥{{ row.paid_amount?.toFixed(2) }}</template>
       </el-table-column>
@@ -115,10 +120,7 @@ async function handleCreate() {
 function statusType(s) { return { pending: 'info', paid: 'warning', confirmed: 'success', checked_in: '', cancelled: 'danger', refunded: 'danger' }[s] || '' }
 function statusLabel(s) { return { pending: '待支付', paid: '已支付', confirmed: '已确认', checked_in: '已签到', cancelled: '已取消', refunded: '已退款' }[s] || s }
 
-onMounted(() => {
-  load()
-  setInterval(load, 10000) // 10秒自动刷新
-})
+onMounted(load)
 watch(() => venueStore.currentId, () => { load() })
 </script>
 
