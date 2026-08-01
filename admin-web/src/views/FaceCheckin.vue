@@ -100,7 +100,7 @@ let stream = null
 let detectionInterval = null
 let faceMatcher = null
 
-const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models'
+const MODEL_URL = '/models'
 
 async function loadModels() {
   try {
@@ -108,7 +108,6 @@ async function loadModels() {
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
     ])
     modelReady.value = true
   } catch {

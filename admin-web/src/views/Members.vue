@@ -412,7 +412,7 @@ const selectedCardRemaining = computed(() => {
 
 onMounted(async () => {
   try { cardTypes.value = (await api.get('/card-types')).card_types || [] } catch { /* */ }
-  const M = 'https://justadudewhohacks.github.io/face-api.js/models'
+  const M = '/models'
   try { await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(M), faceapi.nets.faceLandmark68TinyNet.loadFromUri(M), faceapi.nets.faceRecognitionNet.loadFromUri(M)]) } catch { /* */ }
   await load()
 })
