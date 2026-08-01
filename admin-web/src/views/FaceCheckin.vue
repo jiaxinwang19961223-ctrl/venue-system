@@ -147,7 +147,7 @@ async function buildFaceMatcher() {
   }).filter(Boolean)
 
   labeledDescriptors.value = descriptors
-  faceMatcher = new faceapi.FaceMatcher(descriptors, 0.55)
+  faceMatcher = new faceapi.FaceMatcher(descriptors, 0.45)
 }
 
 async function startCamera() {
@@ -202,7 +202,7 @@ async function startDetection() {
       // 匹配
       const match = faceMatcher.findBestMatch(result.descriptor)
 
-      if (match.label === 'unknown' || match.distance > 0.55) {
+      if (match.label === 'unknown' || match.distance > 0.45) {
         // 未识别 — 但显示最近距离
         detectedMember.value = null
         noMatch.value = true
