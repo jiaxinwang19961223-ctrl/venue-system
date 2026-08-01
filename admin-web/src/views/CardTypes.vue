@@ -48,26 +48,17 @@
             <el-radio-button label="custom">定制</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item label="售价(元)">
-              <el-input-number v-model="form.price" :min="0" :precision="2" style="width:100%" controls-position="right" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="有效期">
-              <span v-if="form.category === 'stored'" style="color:#909399">固定3年（1095天）</span>
-              <el-select v-else v-model="form.valid_days" style="width:100%">
-                <el-option v-for="d in validOptions" :key="d.value" :label="d.label" :value="d.value" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
         <el-form-item v-if="form.category === 'stored' || form.category === 'custom'" label="储值金额">
           <el-input-number v-model="form.total_times" :min="1" :step="100" style="width:100%" controls-position="right" />
         </el-form-item>
-        <el-form-item v-if="!['stored','custom'].includes(form.category)" label="次数">
-          <span style="color:#909399">不限次数</span>
+        <el-form-item v-else label="售价(元)">
+          <el-input-number v-model="form.price" :min="0" :precision="2" style="width:100%" controls-position="right" />
+        </el-form-item>
+        <el-form-item label="有效期">
+          <span v-if="form.category === 'stored'" style="color:#909399">固定3年（1095天）</span>
+          <el-select v-else v-model="form.valid_days" style="width:100%">
+            <el-option v-for="d in validOptions" :key="d.value" :label="d.label" :value="d.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :rows="2" placeholder="如：限本人使用、周末不可用等" />
@@ -113,25 +104,30 @@ async function load() {
 
 function showAdd() {
   editingId.value = null
-  form.value = { name: '', category: 'stored', total_times: 500, price: 500, valid_days: 1095, description: '' }
+  form.value = { name: '', category: 'stored', total_times: 500, price: 0, valid_days: 1095, description: '' }
   showDialog.value = true
+}
+
+async function handleSave() {
+  if (!form.value.name) { ElMessage.warning('请输入卡种名称'); return }
+  const data = { ...form.value }
+  // 储值卡：售价 = 储值金额
+  if (data.category === 'stored' || data.category === 'custom') {
+    data.price = data.total_times
+  }
+  try {
+    if (editingId.value) { await api.put(`/card-types/${editingId.value}`, data) }
+    else { await api.post('/card-types', data) }
+    showDialog.value = false
+    await load()
+    ElMessage.success('保存成功')
+  } catch { /* */ }
 }
 
 function editType(row) {
   editingId.value = row.id
   form.value = { ...row }
   showDialog.value = true
-}
-
-async function handleSave() {
-  if (!form.value.name) { ElMessage.warning('请输入卡种名称'); return }
-  try {
-    if (editingId.value) { await api.put(`/card-types/${editingId.value}`, form.value) }
-    else { await api.post('/card-types', form.value) }
-    showDialog.value = false
-    await load()
-    ElMessage.success('保存成功')
-  } catch { /* */ }
 }
 
 async function deleteType(id) {
