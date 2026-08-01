@@ -322,13 +322,24 @@ async function load() { try { members.value = (await getMembers({ keyword: keywo
 async function search() { keyword.value = keyword.value.trim(); await load() }
 
 async function handleSave() {
-  const data = { ...form.value }
+  if (!form.value.name) { ElMessage.warning('请输入姓名'); return }
+  if (!form.value.phone) { ElMessage.warning('请输入手机号'); return }
+  if (!form.value.venue_id) { ElMessage.warning('请先在顶部选择场馆'); return }
+
+  const data = {
+    venue_id: form.value.venue_id,
+    name: form.value.name,
+    phone: form.value.phone,
+    gender: form.value.gender || '',
+    birthday: form.value.birthday || null,
+    balance: form.value.balance || 0,
+    remark: form.value.remark || '',
+  }
   if (facePreview.value) {
     data.face_image = facePreview.value
     data.face_descriptor = faceDescriptor.value || null
   }
-  const cardTypeId = data.card_type_id
-  delete data.card_type_id  // 不传给 member API
+  const cardTypeId = form.value.card_type_id
 
   try {
     let memberId = editingId.value
@@ -338,8 +349,8 @@ async function handleSave() {
       const res = await createMember(data)
       memberId = res.id
     }
-    // 新建时如果选了卡种，自动办卡
-    if (!editingId.value && cardTypeId) {
+
+    if (!editingId.value && cardTypeId && memberId) {
       const ct = cardTypes.value.find(t => t.id === cardTypeId)
       if (ct) {
         const end = new Date(); end.setDate(end.getDate() + ct.valid_days)
@@ -350,11 +361,14 @@ async function handleSave() {
             start_date: new Date().toISOString().slice(0, 10),
             end_date: end.toISOString().slice(0, 10),
           })
-        } catch { /* */ }
+        } catch (e) { console.error('办卡失败', e) }
       }
     }
     showDialog.value = false; stopCamera(); await load(); ElMessage.success('保存成功')
-  } catch { /* */ }
+  } catch (e) {
+    console.error('保存失败', e)
+    ElMessage.error('保存失败，请检查网络或联系管理员')
+  }
 }
 
 // ──── 充值/办卡/签到/记录 ────
