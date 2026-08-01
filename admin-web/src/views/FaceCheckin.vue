@@ -174,10 +174,11 @@ async function startDetection() {
   noMatch.value = false
   detectedMember.value = null
 
-  detectionInterval = setInterval(async () => {
-    if (!videoRef.value) return
+  let detectTimer = null
+
+  async function detectOnce() {
+    if (!videoRef.value || !detecting.value) return
     try {
-      // 用 SSD MobileNet 做更准的检测
       const result = await faceapi
         .detectSingleFace(videoRef.value, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.4 }))
         .withFaceLandmarks(true)
@@ -188,22 +189,19 @@ async function startDetection() {
       ctx?.clearRect(0, 0, 400, 300)
 
       if (!result) {
-        // 检测不到人脸时保留上次结果，不立即清除
         if (!detectedMember.value) noMatch.value = false
+        detectTimer = setTimeout(detectOnce, 800) // 没人 → 快扫
         return
       }
 
-      // 绘制人脸框
       const box = result.detection.box
       ctx.strokeStyle = '#409EFF'
       ctx.lineWidth = 2
       ctx.strokeRect(box.x, box.y, box.width, box.height)
 
-      // 匹配
       const match = faceMatcher.findBestMatch(result.descriptor)
 
       if (match.label === 'unknown' || match.distance > 0.45) {
-        // 未识别 — 但显示最近距离
         detectedMember.value = null
         noMatch.value = true
         ctx.strokeStyle = '#E6A23C'
@@ -213,36 +211,37 @@ async function startDetection() {
         } else {
           matchDistance.value = ''
         }
+        detectTimer = setTimeout(detectOnce, 800) // 未识别 → 快扫
         return
       }
 
-      // 匹配成功
+      // 匹配成功 → 锁定，不再检测
       noMatch.value = false
       const memberId = parseInt(match.label.split('_')[0])
       const prevId = detectedMember.value?.id
       detectedMember.value = members.value.find(m => m.id === memberId)
       const similarity = ((1 - match.distance) * 100).toFixed(1)
       matchDistance.value = `${similarity}%`
-      // 只有换人才重置金额
       if (prevId !== memberId) {
         Object.assign(checkinForm, { amount: 0, remark: '' })
       }
 
-      // 绿色框
       ctx.strokeStyle = '#67C23A'
       ctx.lineWidth = 3
       ctx.strokeRect(box.x, box.y, box.width, box.height)
-      // 标注名字
       ctx.fillStyle = '#67C23A'
       ctx.font = '14px sans-serif'
       ctx.fillText(match.label.split('_')[1], box.x, box.y - 8)
+      // 识别成功后不再继续检测，保持稳定
 
-    } catch { /* skip frame */ }
-  }, 3000) // 3秒检测一次，避免频繁重置
+    } catch { detectTimer = setTimeout(detectOnce, 2000) }
+  }
+
+  detectTimer = setTimeout(detectOnce, 500)
 }
 
 function stopDetection() {
-  clearInterval(detectionInterval)
+  clearTimeout(detectionInterval)
   detecting.value = false
   detectedMember.value = null
   noMatch.value = false
