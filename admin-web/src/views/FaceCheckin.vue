@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <h3><i class="ri-camera-line"></i> 人脸签到</h3>
-      <el-tag :type="modelReady ? 'success' : 'warning'">{{ modelReady ? '模型就绪' : '加载模型中...' }}</el-tag>
+      <el-tag :type="modelReady ? 'success' : modelError ? 'danger' : 'warning'">{{ modelReady ? '模型就绪' : modelError ? '模型加载失败' : '加载模型中...' }}</el-tag>
     </div>
 
     <el-row :gutter="20">
@@ -92,6 +92,7 @@ const noMatch = ref(false)
 const members = ref([])
 const checkins = ref([])
 const modelReady = ref(false)
+const modelError = ref(false)
 const matchDistance = ref('')
 const labeledDescriptors = ref([])
 
@@ -104,14 +105,19 @@ const MODEL_URL = '/models'
 
 async function loadModels() {
   try {
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-    ])
+    console.log('开始加载人脸模型...', MODEL_URL)
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
+    console.log('tinyFaceDetector 加载完成')
+    await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL)
+    console.log('faceLandmark68TinyNet 加载完成')
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    console.log('faceRecognitionNet 加载完成')
     modelReady.value = true
-  } catch {
-    ElMessage.error('人脸模型加载失败，请检查网络')
+    ElMessage.success('人脸模型就绪')
+  } catch (e) {
+    console.error('模型加载失败', e)
+    modelError.value = true
+    ElMessage.error('人脸模型加载失败: ' + (e.message || '未知错误'))
   }
 }
 
