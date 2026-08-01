@@ -272,6 +272,8 @@ async function doCheckin() {
       m.total_consumption = res.total_consumption
     }
     ElMessage.success(`${m.name} 扣费 ¥${(checkinForm.amount || 0).toFixed(2)}`)
+    // 扣费后清零，防多扣
+    Object.assign(checkinForm, { amount: 0, remark: '' })
   } catch { /* */ }
 }
 
