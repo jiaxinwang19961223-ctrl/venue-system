@@ -12,8 +12,7 @@ router = APIRouter(prefix="/card-types", tags=["卡种管理"])
 
 
 class CardTypeCreate(BaseModel):
-    name: str
-    category: str = "times"
+    category: str = "stored"
     total_times: int = 0
     price: float = 0
     valid_days: int = 30

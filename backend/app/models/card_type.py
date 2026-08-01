@@ -8,13 +8,19 @@ class CardType(Base):
     __tablename__ = "card_types"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), nullable=False, comment="卡种名称（如：羽毛球10次卡、篮球月卡）")
     category = Column(String(30), default="stored", comment="类别: stored(储值卡)/month(月卡)/season(季卡)/year(年卡)/custom(自定义)")
-
     total_times = Column(Integer, default=0, comment="总次数（储值卡=储值金额）")
-    price = Column(Float, default=0, comment="售价")
+    price = Column(Float, default=0, comment="售价（储值卡=储值金额）")
     valid_days = Column(Integer, default=30, comment="有效天数")
-
     is_active = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
     description = Column(Text)
+
+    @property
+    def name(self):
+        """自动生成显示名称"""
+        cat_names = {'stored': '储值卡', 'month': '月卡', 'season': '季卡', 'year': '年卡', 'custom': '定制'}
+        cat = cat_names.get(self.category, self.category)
+        if self.category in ('stored', 'custom'):
+            return f'{cat} ¥{int(self.total_times)}'
+        return f'{cat} ¥{int(self.price)}'

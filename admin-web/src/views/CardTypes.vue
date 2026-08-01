@@ -10,7 +10,7 @@
       <el-col v-for="ct in cardTypes" :key="ct.id" :span="8" style="margin-bottom:16px">
         <el-card shadow="hover" class="card-item">
           <div class="card-header">
-            <span class="card-name">{{ ct.name }}</span>
+            <span class="card-name">{{ ct.name || categoryLabel(ct.category) }}</span>
             <el-tag :type="tagType(ct.category)" size="small">{{ categoryLabel(ct.category) }}</el-tag>
           </div>
           <div class="card-price">¥{{ ct.price }}</div>
@@ -36,9 +36,6 @@
     <!-- 新增/编辑弹窗 -->
     <el-dialog :title="editingId ? '编辑卡种' : '新增卡种'" v-model="showDialog" width="500px">
       <el-form :model="form" label-width="80px">
-        <el-form-item label="卡种名称">
-          <el-input v-model="form.name" placeholder="如：羽毛球10次卡、篮球月卡" />
-        </el-form-item>
         <el-form-item label="卡类型">
           <el-radio-group v-model="form.category">
             <el-radio-button label="stored">储值卡</el-radio-button>
@@ -80,7 +77,7 @@ import { ElMessage } from 'element-plus'
 const cardTypes = ref([])
 const showDialog = ref(false)
 const editingId = ref(null)
-const form = ref({ name: '', category: 'times', total_times: 10, price: 0, valid_days: 30, description: '' })
+const form = ref({ category: 'stored', total_times: 500, price: 0, valid_days: 1095, description: '' })
 
 const validOptions = [
   { label: '1个月', value: 30 },
@@ -104,14 +101,13 @@ async function load() {
 
 function showAdd() {
   editingId.value = null
-  form.value = { name: '', category: 'stored', total_times: 500, price: 0, valid_days: 1095, description: '' }
+  form.value = { category: 'stored', total_times: 500, price: 0, valid_days: 1095, description: '' }
   showDialog.value = true
 }
 
 async function handleSave() {
-  if (!form.value.name) { ElMessage.warning('请输入卡种名称'); return }
   const data = { ...form.value }
-  // 储值卡：售价 = 储值金额
+  // 储值卡/定制：售价 = 储值金额
   if (data.category === 'stored' || data.category === 'custom') {
     data.price = data.total_times
   }
