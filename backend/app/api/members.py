@@ -227,16 +227,33 @@ def member_consume(member_id: int, data: ConsumeRequest, user: User = Depends(ge
 
 
 def _format_member(m: Member) -> dict:
+    # 获取最近消费时间
+    from app.models.order import Order
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    last_order = db.query(Order).filter(Order.member_id == m.id, Order.status.in_(["paid","confirmed","checked_in"])).order_by(Order.created_at.desc()).first()
+    last_consume_time = str(last_order.created_at) if last_order else None
+    # 获取有效卡信息
+    active_cards = [c for c in m.cards if c.is_active and (not c.end_date or c.end_date > datetime.now())]
+    primary_card = active_cards[0] if active_cards else None
+    card_types_str = ", ".join(set(c.card_type for c in active_cards)) if active_cards else None
+    db.close()
+
     return {
         "id": m.id, "name": m.name,
-        "phone": m.phone[:3] + "****" + m.phone[-4:] if len(m.phone) >= 7 else m.phone,
-        "gender": m.gender, "level": m.level.name if m.level else None,
+        "phone": m.phone,
+        "gender": m.gender,
         "balance": m.balance, "total_recharge": m.total_recharge,
         "total_consumption": m.total_consumption,
         "face_image": m.face_image,
         "face_descriptor": m.face_descriptor,
         "venue_id": m.venue_id,
         "is_active": m.is_active,
+        # 球之道风格额外字段
+        "card_types": card_types_str,
+        "card_remaining": (primary_card.total_times - primary_card.used_times) if primary_card and primary_card.card_type == "times" else None,
+        "card_expire": str(primary_card.end_date.date()) if primary_card and primary_card.end_date else None,
+        "last_consume_time": last_consume_time,
     }
 
 

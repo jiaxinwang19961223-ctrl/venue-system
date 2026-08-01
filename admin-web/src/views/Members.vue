@@ -9,26 +9,34 @@
       </div>
     </div>
 
-    <el-table :data="members" stripe>
-      <el-table-column label="人脸" width="70">
+    <el-table :data="members" stripe size="small" style="min-width:1100px">
+      <el-table-column prop="name" label="姓名" width="80" fixed />
+      <el-table-column prop="phone" label="联系电话" width="130" />
+      <el-table-column label="卡片类型" width="100">
         <template #default="{ row }">
-          <el-avatar v-if="row.face_image" :src="row.face_image" size="small" />
-          <el-tag v-else size="small" type="info">—</el-tag>
+          <el-tag v-if="row.card_types" size="small" type="success">{{ cardTypeLabel(row.card_types) }}</el-tag>
+          <span v-else style="color:#C0C4CC">—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="name" label="姓名" width="100" />
-      <el-table-column prop="phone" label="手机号" width="130" />
-      <el-table-column prop="gender" label="性别" width="60" />
-      <el-table-column prop="balance" label="余额" width="100" sortable>
+      <el-table-column label="最近消费" width="150">
+        <template #default="{ row }">
+          <span v-if="row.last_consume_time" style="font-size:12px">{{ row.last_consume_time?.slice(0,16)?.replace('T',' ') }}</span>
+          <span v-else style="color:#C0C4CC">—</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="有效期" width="100">
+        <template #default="{ row }">{{ row.card_expire || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="剩余" width="80">
+        <template #default="{ row }">{{ row.card_remaining != null ? row.card_remaining + '次' : '—' }}</template>
+      </el-table-column>
+      <el-table-column label="储值/余额" width="110" sortable>
         <template #default="{ row }"><strong>¥{{ row.balance?.toFixed(2) }}</strong></template>
       </el-table-column>
-      <el-table-column prop="total_recharge" label="累计充值" width="100">
-        <template #default="{ row }">¥{{ (row.total_recharge || 0).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column prop="total_consumption" label="累计消费" width="100">
+      <el-table-column label="累计消费" width="100">
         <template #default="{ row }">¥{{ Math.abs(row.total_consumption || 0).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
           <div class="btn-row">
             <el-button size="small" type="warning" @click="showRecharge(row)">充值</el-button>
@@ -320,6 +328,11 @@ async function showConsume(m) { consumeMember.value=m; consumeForm.value={amount
 async function handleConsume() { try { await api.post(`/members/${consumeMember.value.id}/consume`, consumeForm.value); showConsumeDialog.value=false; await load(); ElMessage.success('扣费成功') } catch { /* */ } }
 
 async function showOrders(m) { consumeMember.value=m; try{memberOrders.value=(await api.get(`/members/${m.id}/orders`)).orders||[]}catch{memberOrders.value=[]}; showOrdersDialog.value=true }
+
+function cardTypeLabel(types) {
+  if (!types) return ''
+  return types.split(',').map(t => ({ times: '次卡', month: '月卡', year: '年卡' }[t.trim()] || t)).join('/')
+}
 
 onMounted(async () => {
   try { cardTypes.value = (await api.get('/card-types')).card_types || [] } catch { /* */ }
