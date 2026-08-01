@@ -16,7 +16,10 @@
 
     <el-table :data="orders" stripe>
       <el-table-column prop="order_no" label="订单号" width="180" />
-      <el-table-column prop="order_type" label="类型" width="100">
+      <el-table-column label="会员" width="100">
+        <template #default="{ row }">{{ row.name || '散客' }}</template>
+      </el-table-column>
+      <el-table-column prop="order_type" label="类型" width="80">
         <template #default="{ row }">{{ { field_book: '场地', walk_in: '散客', card_recharge: '办卡', course_book: '课程' }[row.order_type] }}</template>
       </el-table-column>
       <el-table-column prop="book_date" label="日期" width="110" />
