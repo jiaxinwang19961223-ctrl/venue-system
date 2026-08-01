@@ -37,7 +37,7 @@
     <el-dialog :title="editingId ? '编辑卡种' : '新增卡种'" v-model="showDialog" width="500px">
       <el-form :model="form" label-width="80px">
         <el-form-item label="卡类型">
-          <el-radio-group v-model="form.category">
+          <el-radio-group v-model="form.category" @change="onCategoryChange">
             <el-radio-button label="stored">储值卡</el-radio-button>
             <el-radio-button label="month">月卡</el-radio-button>
             <el-radio-button label="season">季卡</el-radio-button>
@@ -52,10 +52,7 @@
           <el-input-number v-model="form.price" :min="0" :precision="2" style="width:100%" controls-position="right" />
         </el-form-item>
         <el-form-item label="有效期">
-          <span v-if="form.category === 'stored'" style="color:#909399">固定3年（1095天）</span>
-          <el-select v-else v-model="form.valid_days" style="width:100%">
-            <el-option v-for="d in validOptions" :key="d.value" :label="d.label" :value="d.value" />
-          </el-select>
+          <span style="color:#303133;font-weight:500">{{ validDaysLabel }}</span>
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :rows="2" placeholder="如：限本人使用、周末不可用等" />
@@ -70,7 +67,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../api'
 import { ElMessage } from 'element-plus'
 
@@ -79,13 +76,20 @@ const showDialog = ref(false)
 const editingId = ref(null)
 const form = ref({ category: 'stored', total_times: 500, price: 0, valid_days: 1095, description: '' })
 
-const validOptions = [
-  { label: '1个月', value: 30 },
-  { label: '3个月', value: 90 },
-  { label: '半年', value: 180 },
-  { label: '1年', value: 365 },
-  { label: '2年', value: 730 },
-]
+const validDaysMap = { stored: 1095, month: 30, season: 90, year: 365, custom: 365 }
+const validDaysLabel = computed(() => {
+  const d = validDaysMap[form.value.category] || 30
+  if (d >= 365) return `${d/365|0}年（${d}天）`
+  if (d >= 30) return `${d/30|0}个月（${d}天）`
+  return `${d}天`
+})
+
+function onCategoryChange(cat) {
+  form.value.valid_days = validDaysMap[cat] || 30
+  if (cat === 'stored' || cat === 'custom') {
+    form.value.price = form.value.total_times
+  }
+}
 
 function categoryLabel(c) { return { stored: '储值卡', month: '月卡', season: '季卡', year: '年卡', custom: '定制' }[c] || c }
 function tagType(c) { return { stored: 'success', month: '', season: 'warning', year: 'danger', custom: 'info' }[c] || '' }
@@ -101,7 +105,7 @@ async function load() {
 
 function showAdd() {
   editingId.value = null
-  form.value = { category: 'stored', total_times: 500, price: 0, valid_days: 1095, description: '' }
+  form.value = { category: 'stored', total_times: 500, price: 500, valid_days: 1095, description: '' }
   showDialog.value = true
 }
 
