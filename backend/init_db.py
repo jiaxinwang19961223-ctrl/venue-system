@@ -18,10 +18,10 @@ def init_db():
     # 创建默认球馆
     venue = Venue(
         name="默认球馆",
-        address="请修改为实际地址",
-        phone="13800000000",
+        address="",
+        phone="",
         business_hours="09:00-22:00",
-        district="洪山区",
+        district="",
     )
     db.add(venue)
     db.flush()
