@@ -21,6 +21,8 @@ class MemberCreate(BaseModel):
     gender: str = ""
     birthday: Optional[str] = None
     balance: float = 0
+    face_image: Optional[str] = None
+    face_descriptor: Optional[str] = None
 
 class MemberUpdate(BaseModel):
     name: Optional[str] = None

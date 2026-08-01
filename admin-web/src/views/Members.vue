@@ -244,28 +244,28 @@ function stopStream(s, setActive) { if (s) { s.getTracks().forEach(t => t.stop()
 async function doCapture(videoEl, canvasEl, setPreview, setDescriptor, setStatus, setOk, s) {
   const video = videoEl
   const canvas = canvasEl
-  if (!canvas || !video) return
+  if (!canvas || !video) { setStatus('摄像头未就绪'); return }
   canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height)
   const img = canvas.toDataURL('image/jpeg', 0.8)
   setPreview(img)
   if (s) { s.getTracks().forEach(t => t.stop()) }
 
-  // 提取特征
+  setStatus('正在提取人脸特征...')
   try {
-    const d = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
+    const d = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.4 }))
       .withFaceLandmarks(true).withFaceDescriptor()
     if (d) {
       setDescriptor(JSON.stringify(Array.from(d.descriptor)))
-      setStatus('✅ 人脸特征已提取')
+      setStatus('✅ 已提取')
       setOk(true)
     } else {
       setDescriptor(null)
-      setStatus('⚠ 未检测到清晰人脸')
+      setStatus('⚠ 未检测到人脸，仅保存照片')
       setOk(false)
     }
-  } catch {
+  } catch (e) {
     setDescriptor(null)
-    setStatus('⚠ 特征提取失败')
+    setStatus('⚠ 仅保存照片（特征提取失败）')
     setOk(false)
   }
 }
@@ -313,7 +313,10 @@ async function search() { keyword.value = keyword.value.trim(); await load() }
 
 async function handleSave() {
   const data = { ...form.value }
-  if (facePreview.value) { data.face_image = facePreview.value; data.face_descriptor = faceDescriptor.value }
+  if (facePreview.value) {
+    data.face_image = facePreview.value
+    data.face_descriptor = faceDescriptor.value || null
+  }
   try {
     if (editingId.value) { await updateMember(editingId.value, data) } else { await createMember(data) }
     showDialog.value = false; stopCamera(); await load(); ElMessage.success('保存成功')
