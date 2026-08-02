@@ -24,17 +24,13 @@
           <span v-else style="color:#C0C4CC">—</span>
         </template>
       </el-table-column>
-      <el-table-column label="最近消费" width="150">
+      <el-table-column label="有效期" width="120">
         <template #default="{ row }">
-          <span v-if="row.last_consume_time" style="font-size:12px">{{ row.last_consume_time?.slice(0,16)?.replace('T',' ') }}</span>
-          <span v-else style="color:#C0C4CC">—</span>
+          <span v-if="row.card_end_date" class="expire-tag" :class="expireClass(row.card_end_date)">
+            {{ countdownDays(row.card_end_date) }}
+          </span>
+          <span v-else style="color:#C0C4CC;font-size:12px">—</span>
         </template>
-      </el-table-column>
-      <el-table-column label="有效期" width="100">
-        <template #default="{ row }">{{ row.card_expire || '—' }}</template>
-      </el-table-column>
-      <el-table-column label="剩余" width="80">
-        <template #default="{ row }">{{ row.card_remaining != null ? row.card_remaining + '次' : '—' }}</template>
       </el-table-column>
       <el-table-column label="储值/余额" width="110" sortable>
         <template #default="{ row }"><strong>¥{{ row.balance?.toFixed(2) }}</strong></template>
@@ -55,7 +51,7 @@
     </el-table>
 
     <!-- ──── 新增/编辑（含人脸拍照）──── -->
-    <el-dialog :title="editingId ? '编辑会员' : '新增会员'" v-model="showDialog" width="560px" @closed="stopCamera">
+    <el-dialog :title="editingId ? '编辑会员' : '新增会员'" v-model="showDialog" width="730px" @closed="stopCamera">
       <el-row :gutter="20">
         <!-- 左侧：基本信息 -->
         <el-col :span="14">
@@ -90,6 +86,21 @@
             </div>
             <p v-if="faceStatus" class="face-status" :style="{color: faceOk ? '#67C23A' : '#E6A23C'}">{{ faceStatus }}</p>
           </div>
+        </el-col>
+      </el-row>
+      <!-- 编辑模式下：卡有效期调整（全宽） -->
+      <el-row v-if="editingId && editingCards.length > 0">
+        <el-col :span="24">
+          <el-divider content-position="left" style="margin:8px 0">卡有效期调整</el-divider>
+          <el-form :model="form" label-width="100px" inline>
+            <el-form-item label="当前卡">
+              <el-tag size="small" type="success">{{ cardTypeLabel(editingCards[0]?.card_type) }}</el-tag>
+              <span style="margin-left:8px;font-size:12px;color:#909399">到期: {{ editingCards[0]?.end_date || '—' }}</span>
+            </el-form-item>
+            <el-form-item label="修改到期日">
+              <el-date-picker v-model="editCardEndDate" type="date" value-format="YYYY-MM-DD" placeholder="选择新的到期日期" style="width:220px" />
+            </el-form-item>
+          </el-form>
         </el-col>
       </el-row>
       <template #footer>
@@ -183,7 +194,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { getMembers, getMember, createMember, updateMember, getMemberCards, createCard } from '../api'
 import api from '../api'
 import * as faceapi from 'face-api.js'
@@ -294,13 +305,27 @@ function retakeFace() { facePreview.value = null; faceDescriptor.value = null; f
 function stopCamera() { stopStream(stream, (v) => cameraActive.value = v); stopStream(retakeStream, (v) => retakeCameraActive.value = v) }
 
 // ──── 补拍 ────
-function editMember(m) {
+const editingCards = ref([])   // 编辑时加载的会员卡列表
+const editingCardId = ref(null)
+const editCardEndDate = ref('')
+
+async function editMember(m) {
   editingId.value = m.id
   form.value = { name: m.name, phone: m.phone, gender: m.gender || '', birthday: '', remark: '', venue_id: m.venue_id }
   facePreview.value = m.face_image || null
   faceDescriptor.value = null
   faceStatus.value = m.face_image ? '(已有照片，可重拍)' : ''
   faceOk.value = false
+  // 加载会员卡
+  try {
+    const res = await getMemberCards(m.id)
+    editingCards.value = (res.cards || []).filter(c => c.is_active)
+    if (editingCards.value.length > 0) {
+      const c = editingCards.value[0]
+      editingCardId.value = c.id
+      editCardEndDate.value = c.end_date || ''
+    }
+  } catch { editingCards.value = [] }
   showDialog.value = true
 }
 
@@ -356,6 +381,15 @@ async function handleSave() {
     let memberId = editingId.value
     if (editingId.value) {
       await updateMember(editingId.value, data)
+      // 如果修改了卡有效期
+      if (editingCardId.value && editCardEndDate.value) {
+        try {
+          await api.put(`/members/${editingId.value}/cards/${editingCardId.value}/validity`, {
+            end_date: editCardEndDate.value,
+            remark: '手动调整有效期',
+          })
+        } catch (e) { console.error('有效期更新失败', e) }
+      }
     } else {
       const res = await createMember(data)
       memberId = res.id
@@ -411,6 +445,29 @@ function cardLabel(c) {
   return `${c.card_type} 剩${c.total_times - c.used_times}次`
 }
 
+// ──── 有效期倒计时（天为单位）────
+const now = ref(Date.now())
+let countdownTimer = null
+
+function countdownDays(endDateStr) {
+  if (!endDateStr) return ''
+  const end = new Date(endDateStr).getTime()
+  const diff = end - now.value
+  if (diff <= 0) return '已过期'
+  const days = Math.ceil(diff / 86400000)
+  return `${days}天`
+}
+
+function expireClass(endDateStr) {
+  if (!endDateStr) return ''
+  const end = new Date(endDateStr).getTime()
+  const diff = end - now.value
+  if (diff <= 0) return 'expired'
+  if (diff < 3 * 86400000) return 'urgent'
+  if (diff < 7 * 86400000) return 'soon'
+  return 'ok'
+}
+
 const selectedCardType = computed(() => {
   const c = consumeCards.value.find(c => c.id === consumeForm.value.card_id)
   return c?.card_type || ''
@@ -426,9 +483,13 @@ onMounted(async () => {
   const M = '/models'
   try { await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(M), faceapi.nets.faceLandmark68TinyNet.loadFromUri(M), faceapi.nets.faceRecognitionNet.loadFromUri(M)]) } catch { /* */ }
   await load()
+  // 有效期每天刷新（每小时检查一次）
+  countdownTimer = setInterval(() => { now.value = Date.now() }, 3600000)
 })
 
 watch(() => venueStore.currentId, () => { load() })
+
+onBeforeUnmount(() => { if (countdownTimer) clearInterval(countdownTimer) })
 </script>
 
 <style scoped>
@@ -443,4 +504,18 @@ watch(() => venueStore.currentId, () => { load() })
 .face-camera-mini video, .face-preview-mini { width: 100%; height: 100%; object-fit: cover; }
 .face-btns { margin-top: 8px; display: flex; gap: 5px; justify-content: center; }
 .face-status { font-size: 12px; margin: 6px 0 0; }
+
+/* 有效期标签 */
+.expire-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid;
+}
+.expire-tag.ok     { color: #67C23A; border-color: #67C23A; background: #f0f9eb; }
+.expire-tag.soon   { color: #409EFF; border-color: #409EFF; background: #ecf5ff; }
+.expire-tag.urgent { color: #E6A23C; border-color: #E6A23C; background: #fdf6ec; font-weight: 700; }
+.expire-tag.expired{ color: #F56C6C; border-color: #F56C6C; background: #fef0f0; font-weight: 700; }
 </style>

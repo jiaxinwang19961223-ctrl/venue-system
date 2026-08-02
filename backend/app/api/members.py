@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.core.database import get_db
-from app.models.member import Member, MemberLevel, MemberCard
+from app.models.member import Member, MemberLevel, MemberCard, CardModificationLog
 from app.models.order import Order
 from app.models.user import User, UserRole
 from app.api.auth import get_current_user
@@ -74,6 +74,37 @@ def list_members(
 
     members = query.order_by(Member.created_at.desc()).limit(100).all()
     return {"members": [_format_member(m) for m in members]}
+
+
+# ──── 修改记录查询 ────
+@router.get("/card-logs")
+def list_card_logs(
+    member_id: Optional[int] = None,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    """查询卡修改记录"""
+    query = db.query(CardModificationLog).order_by(CardModificationLog.created_at.desc())
+    if member_id:
+        query = query.filter(CardModificationLog.member_id == member_id)
+    logs = query.limit(limit).all()
+    return {
+        "logs": [
+            {
+                "id": l.id,
+                "card_id": l.card_id,
+                "member_id": l.member_id,
+                "member_name": l.member.name if l.member else "",
+                "user_name": l.user.name if l.user else "",
+                "field": l.field,
+                "old_value": l.old_value,
+                "new_value": l.new_value,
+                "remark": l.remark,
+                "created_at": str(l.created_at),
+            }
+            for l in logs
+        ]
+    }
 
 
 @router.get("/{member_id}")
@@ -238,6 +269,57 @@ def member_consume(member_id: int, data: ConsumeRequest, user: User = Depends(ge
     return {"message": "签到成功", "balance": member.balance, "total_consumption": member.total_consumption}
 
 
+# ──── 卡有效期修改（带日志）────
+class UpdateCardValidityRequest(BaseModel):
+    end_date: Optional[str] = None   # YYYY-MM-DD
+    days: Optional[int] = None       # 或直接设剩余天数
+    remark: str = ""
+
+
+@router.put("/{member_id}/cards/{card_id}/validity")
+def update_card_validity(
+    member_id: int,
+    card_id: int,
+    data: UpdateCardValidityRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """手动修改卡有效期，自动记录修改日志"""
+    card = db.query(MemberCard).filter(
+        MemberCard.id == card_id,
+        MemberCard.member_id == member_id,
+    ).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="会员卡不存在")
+
+    old_end = str(card.end_date.date()) if card.end_date else "无"
+
+    from datetime import datetime as dt, timedelta
+    if data.end_date:
+        card.end_date = dt.strptime(data.end_date, "%Y-%m-%d")
+        new_end = data.end_date
+    elif data.days is not None:
+        base = card.end_date if card.end_date else dt.now()
+        card.end_date = base + timedelta(days=data.days)
+        new_end = card.end_date.strftime("%Y-%m-%d")
+    else:
+        raise HTTPException(status_code=400, detail="请提供 end_date 或 days")
+
+    # 写入修改日志
+    log = CardModificationLog(
+        card_id=card.id,
+        member_id=member_id,
+        user_id=user.id,
+        field="end_date",
+        old_value=old_end,
+        new_value=new_end,
+        remark=data.remark or f"手动修改有效期: {old_end} → {new_end}",
+    )
+    db.add(log)
+    db.commit()
+    return {"message": "有效期已更新", "old": old_end, "new": new_end}
+
+
 def _format_member(m: Member) -> dict:
     # 获取最近消费时间
     from app.models.order import Order
@@ -265,6 +347,8 @@ def _format_member(m: Member) -> dict:
         "card_types": card_types_str,
         "card_remaining": (primary_card.total_times - primary_card.used_times) if primary_card and primary_card.card_type == "times" else None,
         "card_expire": str(primary_card.end_date.date()) if primary_card and primary_card.end_date else None,
+        "card_end_date": str(primary_card.end_date) if primary_card and primary_card.end_date else None,
+        "card_start_date": str(primary_card.start_date) if primary_card and primary_card.start_date else None,
         "last_consume_time": last_consume_time,
     }
 

@@ -5,6 +5,25 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 
+class CardModificationLog(Base):
+    """卡有效期修改记录"""
+    __tablename__ = "card_modification_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    card_id = Column(Integer, ForeignKey("member_cards.id"), nullable=False, comment="会员卡ID")
+    member_id = Column(Integer, ForeignKey("members.id"), nullable=False, comment="会员ID")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="操作人")
+    field = Column(String(30), nullable=False, comment="修改字段: end_date")
+    old_value = Column(String(100), comment="旧值")
+    new_value = Column(String(100), comment="新值")
+    remark = Column(Text, comment="备注")
+    created_at = Column(DateTime, default=datetime.now, comment="修改时间")
+
+    card = relationship("MemberCard", backref="modification_logs")
+    member = relationship("Member", backref="card_logs")
+    user = relationship("User", backref="card_logs")
+
+
 class MemberLevel(Base):
     """会员等级（参考球之道: 普通/银卡/金卡/钻石等）"""
     __tablename__ = "member_levels"

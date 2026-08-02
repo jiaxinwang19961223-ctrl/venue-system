@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api import auth, venues, orders, members, card_types
 from app.models.card_type import CardType  # 确保建表
+from app.models.member import CardModificationLog  # 确保建表
 
 # 创建所有表
 Base.metadata.create_all(bind=engine)
