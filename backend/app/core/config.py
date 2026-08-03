@@ -4,7 +4,7 @@ from typing import List, Optional
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "万创运维"
+    APP_NAME: str = "创运维"
     API_PREFIX: str = "/api/v1"
     DEBUG: bool = True
 

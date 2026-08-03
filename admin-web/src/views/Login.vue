@@ -3,7 +3,7 @@
     <el-card class="login-card">
       <div class="login-logo">
         <i class="ri-store-2-fill"></i>
-        <h2>万创运维</h2>
+        <h2>创运维</h2>
       </div>
       <el-form :model="form" label-width="0" @submit.prevent="handleLogin">
         <el-form-item>

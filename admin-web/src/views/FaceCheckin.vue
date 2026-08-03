@@ -56,6 +56,8 @@
             <p class="match-score">吻合度 {{ matchDistance }}</p>
             <div class="member-info">
               <p>余额：<strong>¥{{ detectedMember.balance?.toFixed(2) }}</strong></p>
+              <p v-if="detectedCardType" style="color:#409EFF">卡种：<strong>{{ detectedCardType }}</strong></p>
+              <p v-if="detectedCardEnd" style="font-size:12px;color:#909399">有效期至 {{ detectedCardEnd }} · <span :style="{color: detectedCardDays < 7 ? '#F56C6C' : '#909399'}">剩{{ detectedCardDays }}天</span></p>
               <p v-if="checkinForm.amount > 0" style="color:#E6A23C">扣费后：<strong>¥{{ Math.max(0, (detectedMember.balance || 0) - checkinForm.amount).toFixed(2) }}</strong></p>
             </div>
             <el-divider />
@@ -93,6 +95,13 @@ const videoRef = ref(null)
 const overlayRef = ref(null)
 const detecting = ref(false)
 const detectedMember = ref(null)
+const detectedCardType = ref('')
+const detectedCardEnd = ref('')
+const detectedCardDays = computed(() => {
+  if (!detectedCardEnd.value) return 0
+  const diff = new Date(detectedCardEnd.value).getTime() - Date.now()
+  return Math.max(0, Math.ceil(diff / 86400000))
+})
 const noMatch = ref(false)
 const members = ref([])
 const checkins = ref([])
@@ -191,7 +200,7 @@ async function startDetection() {
 
       const canvas = overlayRef.value
       const ctx = canvas?.getContext('2d')
-      ctx?.clearRect(0, 0, 400, 300)
+      ctx?.clearRect(0, 0, canvas.width, canvas.height)
 
       if (!result) {
         if (!detectedMember.value) noMatch.value = false
@@ -200,8 +209,8 @@ async function startDetection() {
       }
 
       const box = result.detection.box
-      ctx.strokeStyle = '#409EFF'
-      ctx.lineWidth = 2
+      ctx.strokeStyle = '#67C23A'
+      ctx.lineWidth = 3
       ctx.strokeRect(box.x, box.y, box.width, box.height)
 
       const match = faceMatcher.findBestMatch(result.descriptor)
@@ -210,6 +219,7 @@ async function startDetection() {
         detectedMember.value = null
         noMatch.value = true
         ctx.strokeStyle = '#E6A23C'
+        ctx.lineWidth = 2
         ctx.strokeRect(box.x, box.y, box.width, box.height)
         if (match.label !== 'unknown') {
           matchDistance.value = `最近: ${match.label.split('_')[1]} 距离${match.distance.toFixed(2)}`
@@ -225,6 +235,21 @@ async function startDetection() {
       const memberId = parseInt(match.label.split('_')[0])
       const prevId = detectedMember.value?.id
       detectedMember.value = members.value.find(m => m.id === memberId)
+      // 获取卡种信息
+      if (detectedMember.value) {
+        try {
+          const cr = await api.get(`/members/${detectedMember.value.id}/cards`)
+          const activeCards = (cr.cards || []).filter(c => c.is_active)
+          if (activeCards.length) {
+            const c = activeCards[0]
+            detectedCardType.value = {stored:'储值卡',month:'月卡',season:'季卡',year:'年卡',times:'次卡'}[c.card_type] || c.card_type
+            detectedCardEnd.value = c.end_date || ''
+          } else {
+            detectedCardType.value = ''
+            detectedCardEnd.value = ''
+          }
+        } catch { detectedCardType.value = '' }
+      }
       const similarity = ((1 - match.distance) * 100).toFixed(1)
       matchDistance.value = `${similarity}%`
       if (prevId !== memberId) {
@@ -291,9 +316,8 @@ onUnmounted(() => { stopDetection() })
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .camera-wrap { position: relative; width: 480px; height: 360px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
-.result-panel { max-height: calc(100vh - 140px); overflow-y: auto; }
-.camera-wrap video, .overlay-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-.overlay-canvas { z-index: 2; }
+.camera-wrap video { width: 100%; height: 100%; object-fit: cover; }
+.overlay-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 .no-result { text-align: center; padding: 40px 0; color: #909399; }
 .detected { text-align: center; padding: 10px 0; }
 .detected h2 { margin: 10px 0 4px; }

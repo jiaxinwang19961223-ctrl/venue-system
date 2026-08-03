@@ -1,7 +1,7 @@
 <template>
   <el-container class="layout">
     <el-aside width="220px" class="aside">
-      <div class="logo"><i class="ri-store-2-fill"></i> 万创运维</div>
+      <div class="logo"><i class="ri-store-2-fill"></i> 创运维</div>
       <el-menu
         :default-active="route.path"
         router
