@@ -28,7 +28,9 @@
             <template #default="{ row }">{{ row.created_at?.slice(0,16)?.replace('T',' ') }}</template>
           </el-table-column>
           <el-table-column label="金额" min-width="80" resizable>
-            <template #default="{ row }"><strong>¥{{ row.paid_amount?.toFixed(2) }}</strong></template>
+            <template #default="{ row }"><span :style="{ color: row.status === 'refunded' ? '#67C23A' : '#F56C6C' }">
+  {{ row.status === 'refunded' ? '+' : '-' }}¥{{ Math.abs(row.paid_amount || 0).toFixed(2) }}
+</span></template>
           </el-table-column>
           <el-table-column label="支付" min-width="70" resizable>
             <template #default="{ row }">{{ { wechat:'微信',cash:'现金',card:'会员卡' }[row.payment_method] || row.payment_method }}</template>
@@ -39,6 +41,9 @@
             </template>
           </el-table-column>
         </el-table>
+        <div style="display:flex;justify-content:center;margin-top:16px" v-if="total > pageSize">
+          <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" background small @current-change="load" />
+        </div>
       </el-tab-pane>
 
       <!-- ──── 修改记录 ──── -->
@@ -48,8 +53,10 @@
             <template #default="{ row }">{{ row.created_at?.slice(0,16)?.replace('T',' ') }}</template>
           </el-table-column>
           <el-table-column prop="member_name" label="会员" width="100" />
-          <el-table-column label="修改字段" width="100">
-            <template #default="{ row }">{{ { end_date: '有效期' }[row.field] || row.field }}</template>
+          <el-table-column label="操作类型" width="100">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.field==='删除'?'danger':''">{{ { end_date:'有效期修改', 删除:'删除会员', 报名:'报名' }[row.field] || row.field }}</el-tag>
+            </template>
           </el-table-column>
           <el-table-column label="旧值 → 新值" width="240">
             <template #default="{ row }">
@@ -77,26 +84,44 @@ const orders = ref([])
 const logs = ref([])
 const filterStatus = ref('')
 const activeTab = ref('orders')
+const page = ref(1)
+const pageSize = ref(15)
+const total = ref(0)
 let timer = null
 
 async function load() {
   try {
-    orders.value = (await getOrders({ status: filterStatus.value || undefined, venue_id: venueStore.currentId })).orders || []
+    const res = await getOrders({
+      status: filterStatus.value || undefined,
+      venue_id: venueStore.currentId,
+      page: page.value,
+      page_size: pageSize.value,
+    })
+    orders.value = res.orders || []
+    total.value = res.total || 0
   } catch { /* */ }
 }
 
 async function loadLogs() {
-  try { logs.value = (await api.get('/members/card-logs', { params: { limit: 200 } })).logs || [] } catch { /* */ }
+  try {
+    const [cardRes, memberRes] = await Promise.all([
+      api.get('/members/card-logs', { params: { limit: 200 } }),
+      api.get('/members/logs', { params: { limit: 200 } }),
+    ])
+    const cardLogs = (cardRes.logs || []).map(l => ({ ...l, _type: 'card' }))
+    const memberLogs = (memberRes.logs || []).map(l => ({ ...l, _type: 'member' }))
+    logs.value = [...cardLogs, ...memberLogs].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+  } catch { /* */ }
 }
 
 function onTabChange(tab) {
   if (tab === 'logs') loadLogs()
 }
 
-function statusType(s) { return { pending: 'info', paid: 'warning', confirmed: 'success', checked_in: '', cancelled: 'danger' }[s] || '' }
-function statusLabel(s) { return { pending: '待支付', paid: '已支付', confirmed: '已确认', checked_in: '已签到', cancelled: '已取消' }[s] || s }
+function statusType(s) { return { pending: 'info', paid: 'warning', confirmed: 'success', checked_in: '', cancelled: 'danger', refunded: 'success' }[s] || '' }
+function statusLabel(s) { return { pending: '待支付', paid: '已支付', confirmed: '已确认', checked_in: '已签到', cancelled: '已取消', refunded: '已退款' }[s] || s }
 
-onMounted(() => { load(); timer = setInterval(load, 5000) })
+onMounted(() => { load(); timer = setInterval(load, 10000) })
 onUnmounted(() => { clearInterval(timer) })
 watch(() => venueStore.currentId, () => { load() })
 </script>

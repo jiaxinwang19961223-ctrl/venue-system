@@ -60,10 +60,13 @@ class Field(Base):
     cover_image = Column(String(500))
     is_active = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0, comment="排序")
+    default_duration = Column(Integer, default=1, comment="默认使用时长（小时）")
+    parent_field_id = Column(Integer, ForeignKey("fields.id"), nullable=True, comment="父场地ID（全场拆分半场时用）")
 
     venue = relationship("Venue", back_populates="fields")
     time_templates = relationship("FieldTimeTemplate", back_populates="field", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="field")
+    parent_field = relationship("Field", remote_side="Field.id", backref="child_fields")
 
 
 class FieldTimeTemplate(Base):

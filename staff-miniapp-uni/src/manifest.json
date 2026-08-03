@@ -1,0 +1,19 @@
+{
+  "name": "场馆运营·员工端",
+  "appid": "",
+  "description": "场馆运营系统员工小程序 — 快速开单、场地状态、课程签到、会员查询",
+  "versionName": "0.1.0",
+  "versionCode": "1",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "postcss": true,
+      "minified": true
+    },
+    "usingComponents": true,
+    "permission": {}
+  }
+}

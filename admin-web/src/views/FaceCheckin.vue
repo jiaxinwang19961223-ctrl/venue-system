@@ -6,12 +6,12 @@
     </div>
 
     <el-row :gutter="20">
-      <el-col :span="12">
+      <el-col :span="14">
         <el-card>
           <template #header>摄像头 <span v-if="detecting" style="color:#67C23A">● 检测中</span></template>
           <div class="camera-wrap">
-            <video ref="videoRef" autoplay playsinline width="400" height="300"></video>
-            <canvas ref="overlayRef" width="400" height="300" class="overlay-canvas"></canvas>
+            <video ref="videoRef" autoplay playsinline width="480" height="360"></video>
+            <canvas ref="overlayRef" width="480" height="360" class="overlay-canvas"></canvas>
           </div>
           <div style="margin-top:12px;text-align:center">
             <el-button type="primary" @click="startDetection" :disabled="detecting || !modelReady">
@@ -20,9 +20,22 @@
             <el-button @click="stopDetection" :disabled="!detecting">停止</el-button>
           </div>
         </el-card>
+
+        <el-card style="margin-top:16px">
+          <template #header>今日签到记录 ({{ checkins.length }})</template>
+          <div style="max-height:200px;overflow-y:auto">
+          <el-timeline v-if="checkins.length">
+            <el-timeline-item v-for="c in checkins" :key="c.id" :timestamp="c.time" placement="top">
+              {{ c.name }} — {{ c.type_label }}
+            </el-timeline-item>
+          </el-timeline>
+          <p v-else style="color:#999;text-align:center">暂无</p>
+          </div>
+        </el-card>
       </el-col>
 
-      <el-col :span="12">
+      <el-col :span="10">
+        <div class="result-panel">
         <el-card>
           <template #header>识别结果</template>
           <div v-if="!detectedMember && !noMatch" class="no-result">
@@ -61,15 +74,7 @@
           </div>
         </el-card>
 
-        <el-card style="margin-top:16px">
-          <template #header>今日签到记录 ({{ checkins.length }})</template>
-          <el-timeline v-if="checkins.length">
-            <el-timeline-item v-for="c in checkins" :key="c.id" :timestamp="c.time" placement="top">
-              {{ c.name }} — {{ c.type_label }}
-            </el-timeline-item>
-          </el-timeline>
-          <p v-else style="color:#999;text-align:center">暂无</p>
-        </el-card>
+        </div>
       </el-col>
     </el-row>
   </div>
@@ -180,7 +185,7 @@ async function startDetection() {
     if (!videoRef.value || !detecting.value) return
     try {
       const result = await faceapi
-        .detectSingleFace(videoRef.value, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.4 }))
+        .detectSingleFace(videoRef.value, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 }))
         .withFaceLandmarks(true)
         .withFaceDescriptor()
 
@@ -285,7 +290,8 @@ onUnmounted(() => { stopDetection() })
 
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.camera-wrap { position: relative; width: 400px; height: 300px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
+.camera-wrap { position: relative; width: 480px; height: 360px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
+.result-panel { max-height: calc(100vh - 140px); overflow-y: auto; }
 .camera-wrap video, .overlay-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 .overlay-canvas { z-index: 2; }
 .no-result { text-align: center; padding: 40px 0; color: #909399; }

@@ -1,0 +1,107 @@
+{
+  "easycom": { "autoscan": true },
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "今日概览",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/order/order",
+      "style": {
+        "navigationBarTitleText": "快速开单",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/member/member",
+      "style": {
+        "navigationBarTitleText": "会员查询",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "员工登录",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/field-board/field-board",
+      "style": {
+        "navigationBarTitleText": "场地状态",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/member-detail/member-detail",
+      "style": {
+        "navigationBarTitleText": "会员详情",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/order-detail/order-detail",
+      "style": {
+        "navigationBarTitleText": "订单详情",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "场馆运营",
+    "navigationBarBackgroundColor": "#409EFF",
+    "backgroundColor": "#F5F7FA"
+  },
+  "tabBar": {
+    "color": "#909399",
+    "selectedColor": "#409EFF",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "概览",
+        "iconPath": "static/tab-overview.png",
+        "selectedIconPath": "static/tab-overview-active.png"
+      },
+      {
+        "pagePath": "pages/order/order",
+        "text": "开单",
+        "iconPath": "static/tab-order.png",
+        "selectedIconPath": "static/tab-order-active.png"
+      },
+      {
+        "pagePath": "pages/member/member",
+        "text": "会员",
+        "iconPath": "static/tab-member.png",
+        "selectedIconPath": "static/tab-member-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "static/tab-me.png",
+        "selectedIconPath": "static/tab-me-active.png"
+      }
+    ]
+  }
+}

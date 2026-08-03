@@ -19,16 +19,10 @@ const routes = [
         meta: { title: '首页' },
       },
       {
-        path: 'venues',
-        name: 'Venues',
-        component: () => import('../views/Venues.vue'),
-        meta: { title: '场馆管理' },
-      },
-      {
-        path: 'fields/:venueId',
-        name: 'Fields',
-        component: () => import('../views/Fields.vue'),
-        meta: { title: '场地管理' },
+        path: 'settings',
+        name: 'Settings',
+        component: () => import('../views/Settings.vue'),
+        meta: { title: '场馆设置' },
       },
       {
         path: 'members',
@@ -49,10 +43,10 @@ const routes = [
         meta: { title: '包场看板' },
       },
       {
-        path: 'card-types',
-        name: 'CardTypes',
-        component: () => import('../views/CardTypes.vue'),
-        meta: { title: '卡种管理' },
+        path: 'training',
+        name: 'Training',
+        component: () => import('../views/Training.vue'),
+        meta: { title: '训练营' },
       },
       {
         path: 'face-checkin',

@@ -1,0 +1,85 @@
+{
+  "easycom": { "autoscan": true },
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "万创体育",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/venue/venue",
+      "style": {
+        "navigationBarTitleText": "场地列表",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/booking/booking",
+      "style": {
+        "navigationBarTitleText": "预订场地",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/orders/orders",
+      "style": {
+        "navigationBarTitleText": "我的订单",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/member/member",
+      "style": {
+        "navigationBarTitleText": "会员中心",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationBarBackgroundColor": "#409EFF",
+        "navigationBarTextStyle": "white"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "万创体育",
+    "navigationBarBackgroundColor": "#409EFF",
+    "backgroundColor": "#F5F7FA"
+  },
+  "tabBar": {
+    "color": "#909399",
+    "selectedColor": "#409EFF",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "iconPath": "static/tab-home.png",
+        "selectedIconPath": "static/tab-home-active.png",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/orders/orders",
+        "iconPath": "static/tab-orders.png",
+        "selectedIconPath": "static/tab-orders-active.png",
+        "text": "订单"
+      },
+      {
+        "pagePath": "pages/member/member",
+        "iconPath": "static/tab-member.png",
+        "selectedIconPath": "static/tab-member-active.png",
+        "text": "会员"
+      }
+    ]
+  }
+}

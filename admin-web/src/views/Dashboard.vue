@@ -47,15 +47,37 @@
         </el-col>
       </el-row>
 
+      <!-- 会员消费 -->
+      <el-row :gutter="16" style="margin-top:12px">
+        <el-col :span="6">
+          <div class="metric-card">
+            <div class="metric-icon" style="background:#F5F0FF"><i class="ri-user-heart-line" style="color:#7C5CFC"></i></div>
+            <div class="metric-body">
+              <span class="metric-val">{{ v.member_consume_count }}</span>
+              <span class="metric-label">消费会员</span>
+            </div>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="metric-card">
+            <div class="metric-icon" style="background:#FFF0F0"><i class="ri-shopping-cart-line" style="color:#E6A23C"></i></div>
+            <div class="metric-body">
+              <span class="metric-val">¥{{ v.member_consume_amount }}</span>
+              <span class="metric-label">会员消费额</span>
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+
       <!-- 场地占用条 -->
       <div class="usage-bar" v-if="v.field_count > 0">
         <div class="usage-title">
           <span>场地占用</span>
-          <span>{{ v.booked_fields }}/{{ v.field_count }} 已订</span>
+          <span>{{ v.booked_fields }}% · {{ v.field_count }}片场地</span>
         </div>
         <el-progress
-          :percentage="v.field_count ? Math.round(v.booked_fields / v.field_count * 100) : 0"
-          :color="v.booked_fields === v.field_count ? '#F56C6C' : '#409EFF'"
+          :percentage="v.booked_fields"
+          :color="v.booked_fields >= 100 ? '#F56C6C' : '#409EFF'"
           :stroke-width="14"
         />
       </div>
@@ -107,7 +129,7 @@ async function load() {
 
     const stats = await Promise.all(venues.map(async (v) => {
       let field_count = 0, member_count = 0, order_today = 0, revenue_today = 0
-      let booked_fields = 0
+      let booked_fields = 0, member_consume_count = 0, member_consume_amount = 0
       let today_bookings = []
 
       try {
@@ -120,8 +142,28 @@ async function load() {
         const oRes = await getOrders({ venue_id: v.id, date: today })
         const orders = oRes.orders || []
         order_today = orders.length
-        revenue_today = orders.reduce((sum, o) => sum + (o.paid_amount || 0), 0).toFixed(2)
-        booked_fields = new Set(orders.filter(o => !['cancelled', 'refunded'].includes(o.status)).map(o => o.field_id)).size
+        revenue_today = parseFloat(orders.reduce((sum, o) => sum + (o.paid_amount || 0), 0).toFixed(2))
+
+        // 按时段计算占用率
+        const hours = (v.business_hours || '09:00-22:00').split('-')
+        const openH = parseInt(hours[0]) || 9
+        const closeH = parseInt(hours[1]) || 22
+        const totalSlots = field_count * Math.max(1, closeH - openH)
+        const fieldBookings = orders.filter(o => o.order_type === 'field_book' && !['cancelled', 'refunded'].includes(o.status))
+        const bookedSlots = fieldBookings.reduce((sum, o) => {
+          if (o.start_time && o.end_time) {
+            const sh = parseInt(o.start_time.split(':')[0])
+            const eh = parseInt(o.end_time.split(':')[0])
+            return sum + Math.max(1, eh - sh)
+          }
+          return sum + 1
+        }, 0)
+        booked_fields = totalSlots > 0 ? Math.round(bookedSlots / totalSlots * 100) : 0
+
+        // 会员消费数据
+        const memberOrders = orders.filter(o => o.member_id && !['cancelled', 'refunded'].includes(o.status))
+        member_consume_count = new Set(memberOrders.map(o => o.member_id)).size
+        member_consume_amount = parseFloat(memberOrders.reduce((sum, o) => sum + (o.paid_amount || 0), 0).toFixed(2))
 
         // 预订标签
         today_bookings = orders.filter(o => o.order_type === 'field_book' && !['cancelled', 'refunded'].includes(o.status)).map(o => ({
@@ -137,7 +179,8 @@ async function load() {
       return {
         id: v.id, name: v.name, status: v.status || 'open',
         field_count, member_count, order_today, revenue_today,
-        booked_fields, today_bookings,
+        booked_fields, member_consume_count, member_consume_amount,
+        today_bookings,
       }
     }))
 
@@ -152,12 +195,15 @@ watch(() => venueStore.currentId, load)
 <style scoped>
 .dashboard { max-width: 1200px; }
 .venue-section {
-  background: #fff; border: 1px solid #EBEEF5; border-radius: 8px; padding: 20px; margin-bottom: 20px;
+  background: var(--glass-bg, rgba(255,255,255,0.65));
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle, rgba(0,0,0,0.06));
+  border-radius: var(--radius, 12px); padding: 20px; margin-bottom: 20px;
 }
 .venue-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .venue-header h3 { margin: 0; font-size: 16px; }
 
-.metric-card { display: flex; align-items: center; gap: 12px; padding: 12px; background: #FAFAFA; border-radius: 8px; }
+.metric-card { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.5); border-radius: 10px; }
 .metric-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
 .metric-body { display: flex; flex-direction: column; }
 .metric-val { font-size: 22px; font-weight: 700; color: #303133; }

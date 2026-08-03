@@ -12,8 +12,11 @@ router = APIRouter(prefix="/card-types", tags=["卡种管理"])
 
 
 class CardTypeCreate(BaseModel):
+    venue_id: Optional[int] = None
+    name: str = ""
     category: str = "stored"
     total_times: int = 0
+    bonus_amount: float = 0
     price: float = 0
     valid_days: int = 30
     description: str = ""
@@ -21,11 +24,16 @@ class CardTypeCreate(BaseModel):
 
 
 @router.get("")
-def list_card_types(db: Session = Depends(get_db)):
-    types = db.query(CardType).filter(CardType.is_active == True).order_by(CardType.sort_order).all()
+def list_card_types(venue_id: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(CardType).filter(CardType.is_active == True)
+    if venue_id:
+        query = query.filter(CardType.venue_id == venue_id)
+    types = query.order_by(CardType.sort_order).all()
     return {"card_types": [
-        {"id": t.id, "name": t.name, "category": t.category, "total_times": t.total_times,
-         "price": t.price, "valid_days": t.valid_days, "description": t.description}
+        {"id": t.id, "name": t.display_name, "category": t.category, "total_times": t.total_times,
+         "bonus_amount": t.bonus_amount or 0,
+         "price": t.price, "valid_days": t.valid_days, "description": t.description,
+         "venue_id": t.venue_id}
         for t in types
     ]}
 
@@ -38,7 +46,7 @@ def create_card_type(data: CardTypeCreate, user: User = Depends(get_current_user
     db.add(ct)
     db.commit()
     db.refresh(ct)
-    return {"id": ct.id, "name": ct.name}
+    return {"id": ct.id, "name": ct.display_name}
 
 
 @router.put("/{type_id}")

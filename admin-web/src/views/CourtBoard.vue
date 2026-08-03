@@ -22,50 +22,80 @@
             <div class="field-col fixed-col header-col">场地</div>
             <div
               v-for="slot in timeSlots"
-              :key="slot"
+              :key="slot.time"
               class="time-col"
-              :class="{ peak: isPeak(slot) }"
+              :class="{ peak: isPeak(slot.time) }"
             >
-              {{ slot }}
+              {{ slot.label }}
             </div>
           </div>
 
           <!-- 场地行 -->
-          <div
-            v-for="field in fields"
-            :key="field.id"
-            class="board-row"
-          >
-            <div class="field-col fixed-col">
-              <span class="field-name">{{ field.name }}</span>
-              <span class="field-type">{{ typeLabel(field.field_type) }}</span>
+          <template v-for="pf in parentFields" :key="pf.id">
+            <div class="board-row" :class="{ 'parent-row': hasChildren(pf.id) }">
+              <div class="field-col fixed-col">
+                <span class="field-name">{{ pf.name }}</span>
+                <span class="field-type">{{ typeIcon(pf.field_type) }} {{ typeLabel(pf.field_type) }}</span>
+                <span class="field-price">¥{{ pf.price_per_hour }}/{{ pf.duration || 1 }}h</span>
+              </div>
+              <div
+                v-for="slot in timeSlots"
+                :key="`${pf.id}-${slot.time}`"
+                class="time-col slot-cell"
+                :class="cellClass(pf.id, slot.time)"
+                @click="handleCellClick(pf, slot.time)"
+              >
+                <span v-if="getBooking(pf.id, slot.time) && !getBooking(pf.id, slot.time)._viaChild" :class="getBooking(pf.id,slot.time).status === 'pending' ? 'cell-locked' : 'cell-booked'">
+                  {{ getBooking(pf.id, slot.time)?.status === 'pending' ? '锁定' : getBooking(pf.id, slot.time)?.name || '已订' }}
+                </span>
+                <span v-else-if="getBooking(pf.id, slot.time)?._viaChild" class="cell-child-booked">
+                  {{ getBooking(pf.id, slot.time)?._childName }}
+                </span>
+                <span v-else-if="isSlotPast(slot.time)" class="cell-past"></span>
+                <span v-else class="cell-free">空闲</span>
+              </div>
             </div>
-            <div
-              v-for="slot in timeSlots"
-              :key="`${field.id}-${slot}`"
-              class="time-col slot-cell"
-              :class="cellClass(field.id, slot)"
-              @click="handleCellClick(field, slot)"
-            >
-              <span v-if="getBooking(field.id, slot)" :class="getBooking(field.id,slot).status === 'pending' ? 'cell-locked' : 'cell-booked'">
-                {{ getBooking(field.id, slot)?.status === 'pending' ? '锁定' : getBooking(field.id, slot)?.name || '已订' }}
-              </span>
-              <span v-else-if="isSlotPast(slot)" class="cell-past"></span>
-              <span v-else class="cell-free">空闲</span>
+
+            <!-- 子场地行（全场拆分的半场） -->
+            <div v-if="getChildren(pf.id).length" class="child-rows">
+              <div
+                v-for="child in getChildren(pf.id)"
+                :key="child.id"
+                class="board-row child-row"
+              >
+                <div class="field-col fixed-col">
+                  <span class="field-name">{{ child.name }}</span>
+                  <span class="field-type">¥{{ child.price_per_hour }}/{{ child.duration || 1 }}h</span>
+                </div>
+                <div
+                  v-for="slot in timeSlots"
+                  :key="`${child.id}-${slot.time}`"
+                  class="time-col slot-cell"
+                  :class="cellClass(child.id, slot.time)"
+                  @click="handleCellClick(child, slot.time)"
+                >
+                  <span v-if="getBooking(child.id, slot.time)" :class="getBooking(child.id,slot.time).status === 'pending' ? 'cell-locked' : 'cell-booked'">
+                    {{ getBooking(child.id, slot.time)?.status === 'pending' ? '锁定' : getBooking(child.id, slot.time)?.name || '已订' }}
+                  </span>
+                  <span v-else-if="getBooking(child.id, slot.time)?._viaChild" class="cell-child-booked">
+                    {{ getBooking(child.id, slot.time)?._childName }}
+                  </span>
+                  <span v-else-if="isSlotPast(slot.time)" class="cell-past"></span>
+                  <span v-else class="cell-free">空闲</span>
+                </div>
+              </div>
             </div>
-          </div>
+          </template>
 
         </div>
       </div>
-    </div>
-
-    <!-- 图例 -->
-    <div class="legend">
-      <span><span class="dot free"></span> 可预约</span>
-      <span><span class="dot locked-dot"></span> 已锁定</span>
-      <span><span class="dot booked"></span> 已预订</span>
-      <span><span class="dot past"></span> 已过期</span>
-      <span><span class="dot peak-dot"></span> 高峰</span>
+      <!-- 图例 -->
+      <div class="legend">
+        <span><span class="dot free"></span> 空闲</span>
+        <span><span class="dot locked-dot"></span> 锁定</span>
+        <span><span class="dot booked"></span> 已订</span>
+        <span><span class="dot past"></span> 过期</span>
+      </div>
     </div>
 
     <!-- 场地预订 — 完整整合表单 -->
@@ -74,7 +104,7 @@
       <el-descriptions :column="3" border size="small">
         <el-descriptions-item label="场地">{{ selectedField?.name }}</el-descriptions-item>
         <el-descriptions-item label="日期">{{ date }}</el-descriptions-item>
-        <el-descriptions-item label="价格">¥{{ selectedField?.price_per_hour || 0 }}/时</el-descriptions-item>
+        <el-descriptions-item label="价格">¥{{ selectedField?.price_per_hour || 0 }}</el-descriptions-item>
         <el-descriptions-item label="时段">{{ selectedSlot }} - {{ endSlot }}</el-descriptions-item>
         <el-descriptions-item label="类型">{{ typeLabel(selectedField?.field_type) }}</el-descriptions-item>
         <el-descriptions-item label="状态"><el-tag type="success" size="small">可预订</el-tag></el-descriptions-item>
@@ -124,21 +154,14 @@
 
         <!-- 支付 -->
         <el-form-item label="支付方式">
-          <el-radio-group v-model="orderForm.payment_method" @change="onPaymentChange">
+          <el-radio-group v-model="orderForm.payment_method">
             <el-radio label="wechat">微信</el-radio>
             <el-radio label="cash">现金</el-radio>
             <el-radio label="balance" :disabled="!foundMember">会员余额</el-radio>
-            <el-radio label="card_stored" :disabled="!foundMember || !memberCards.length">储值卡扣费</el-radio>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item v-if="orderForm.payment_method === 'card_stored'" label="选择储值卡">
-          <el-select v-model="orderForm.card_id" style="width:100%" placeholder="选择储值卡">
-            <el-option v-for="c in memberCards" :key="c.id" :label="`储值卡 余额¥${((c.stored_value||0)-(c.used_value||0)).toFixed(2)}`" :value="c.id" />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="实收金额" v-if="orderForm.payment_method !== 'card_stored'">
+        <el-form-item label="实收金额">
           <el-input-number v-model="orderForm.paid_amount" :min="0" :precision="2" style="width:100%" />
           <span v-if="orderForm.payment_method === 'balance' && foundMember" style="margin-left:8px;color:#909399;font-size:12px;white-space:nowrap">
             扣后余额 ¥{{ Math.max(0, (foundMember.balance || 0) - orderForm.paid_amount).toFixed(2) }}
@@ -165,7 +188,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { getVenues, getFields, getOrders, getMembers, createOrder } from '../api'
+import { getVenues, getVenue, getFields, getOrders, getMembers, createOrder } from '../api'
 import api from '../api'
 import { useVenueStore } from '../stores/venue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -180,7 +203,17 @@ const loading = ref(false)
 const pickerDate = ref(new Date().toISOString().slice(0, 10))
 const scrollRef = ref(null)
 
-const timeSlots = Array.from({ length: 15 }, (_, i) => `${String(8 + i).padStart(2, '0')}:00`)
+const venueHours = ref('09:00-22:00')
+const timeSlots = computed(() => {
+  const parts = (venueHours.value || '09:00-22:00').split('-')
+  const start = parseInt(parts[0]) || 9
+  const end = parseInt(parts[1]) || 22
+  const count = Math.max(1, end - start)
+  return Array.from({ length: count }, (_, i) => {
+    const h = start + i
+    return { time: `${String(h).padStart(2,'0')}:00`, label: `${String(h).padStart(2,'0')}-${String(h+1).padStart(2,'0')}` }
+  })
+})
 
 
 const showQuickOrder = ref(false)
@@ -195,9 +228,10 @@ const customerType = ref('member')
 const orderForm = ref({ phone: '', customer_name: '', paid_amount: 0, payment_method: 'wechat', venue_id: venueStore.currentId, order_type: 'field_book', remark: '', card_id: null })
 
 const endSlot = computed(() => {
-  if (!selectedSlot.value) return ''
+  if (!selectedSlot.value || !selectedField.value) return ''
   const h = parseInt(selectedSlot.value)
-  return `${String(h + 1).padStart(2, '0')}:00`
+  const dur = selectedField.value.duration || 1
+  return `${String(h + dur).padStart(2, '0')}:00`
 })
 
 // ──── 日期导航 ────
@@ -213,35 +247,92 @@ function onWheel(e) {
   scrollRef.value.scrollLeft += e.deltaY
 }
 
+// ──── 场地分组（父场地+子场地）────
+// 按类型+名称排序
+const typeOrder = { badminton: 1, pingpong: 2, tennis: 3, football: 4, basketball: 5, swimming: 6, fitness: 7, other: 8 }
+function fieldSortKey(f) {
+  // 提取楼层：匹配 XF/X楼/X号 或首个数字
+  const floorMatch = f.name.match(/(\d+)[F楼号]/) || f.name.match(/(\d+)/)
+  const floor = floorMatch ? parseInt(floorMatch[1]) : 99
+  const type = typeOrder[f.field_type] || 9
+  const num = parseInt(f.name.match(/\d+/)?.[0]) || 99
+  const hasChild = fields.value.some(c => c.parent_field_id === f.id)
+  const parentPri = hasChild ? 0 : (f.parent_field_id ? 2 : 1)
+  // 球类优先 → 父子（全场>半场）→ 楼层 → 场地号
+  return `${type}-${parentPri}-${String(floor).padStart(2,'0')}-${String(num).padStart(3,'0')}-${f.name}`
+}
+
+const parentFields = computed(() =>
+  fields.value.filter(f => !f.parent_field_id).sort((a, b) => fieldSortKey(a).localeCompare(fieldSortKey(b)))
+)
+const getChildren = (parentId) =>
+  fields.value.filter(f => f.parent_field_id === parentId).sort((a, b) => a.name.localeCompare(b.name))
+const hasChildren = (id) => fields.value.some(f => f.parent_field_id === id)
+
+function typeIcon(t) {
+  const map = { badminton: '🏸', basketball: '🏀', pingpong: '🏓', tennis: '🎾', football: '⚽', swimming: '🏊', fitness: '🏋️' }
+  return map[t] || ''
+}
+
 // ──── 数据加载 ────
+let _loading = false
 async function load() {
+  if (_loading) return  // 防止重复加载覆盖数据
+  if (!venueId.value) return
+  _loading = true
   loading.value = true
   try {
-    const [fRes, oRes] = await Promise.all([
+    const [fRes, oRes, vRes] = await Promise.all([
       getFields(venueId.value),
       getOrders({ date: date.value }),
+      getVenue(venueId.value),
     ])
-    fields.value = fRes.fields || []
+    venueHours.value = (vRes?.business_hours) || '09:00-22:00'
+    fields.value = (fRes.fields || []).map(f => ({
+      ...f,
+      parent_field_id: f.parent_field_id || null,
+    }))
     bookings.value = (oRes.orders || []).filter(o =>
       !['cancelled', 'refunded'].includes(o.status) && o.order_type === 'field_book'
     )
   } catch { /* */ }
   loading.value = false
-  // 滚动到当前时间
+  _loading = false
   nextTick(() => {
     if (!scrollRef.value) return
     const now = new Date()
     if (date.value === now.toISOString().slice(0, 10)) {
-      const hour = now.getHours()
-      scrollRef.value.scrollLeft = Math.max(0, (hour - 8) * 80 - 200)
+      scrollRef.value.scrollLeft = Math.max(0, (now.getHours() - 8) * 80 - 200)
     }
   })
 }
 
-// ──── 单元格逻辑 ────
+// ──── 订场冲突检测（含父子场地互斥）────
 function getBooking(fieldId, slot) {
-  return bookings.value.find(b => b.field_id === fieldId && b.start_time === slot)
+  const field = fields.value.find(f => f.id === fieldId)
+  if (!field) return null
+
+  // 直接查该场地的订单
+  const direct = bookings.value.find(b => b.field_id === fieldId && b.start_time === slot)
+  if (direct) return direct
+
+  // 如果是子场地 → 检查父场地是否被订
+  if (field.parent_field_id) {
+    return bookings.value.find(b => b.field_id === field.parent_field_id && b.start_time === slot) || null
+  }
+
+  // 如果是父场地 → 检查任一子场地是否被订
+  const children = getChildren(fieldId)
+  if (children.length) {
+    for (const child of children) {
+      const b = bookings.value.find(b => b.field_id === child.id && b.start_time === slot)
+      if (b) return { ...b, _viaChild: true, _childName: child.name }
+    }
+  }
+
+  return null
 }
+
 function isSlotPast(slot) {
   const now = new Date()
   const slotDate = new Date(date.value + 'T' + slot)
@@ -251,6 +342,8 @@ function isPeak(slot) {
   return ['18:00', '19:00', '20:00'].includes(slot)
 }
 function cellClass(fieldId, slot) {
+  // 子场地隐藏，不单独显示行（在父场地行中展示）
+  const field = fields.value.find(f => f.id === fieldId)
   const b = getBooking(fieldId, slot)
   if (b) {
     if (b.status === 'pending') return 'locked'
@@ -285,17 +378,54 @@ function handleCellClick(field, slot) {
   }
 
   if (booking) {
+    const hasPaid = booking.status === 'paid' || booking.status === 'confirmed' || booking.status === 'checked_in'
+    const paidInfo = hasPaid ? `\n金额：¥${(booking.paid_amount || 0).toFixed(2)}` : ''
     ElMessageBox.confirm(
-      `${field.name} ${slot} 已预订${booking.name ? ' · ' + booking.name : ''}，要取消吗？`,
+      `${field.name} ${slot} 已预订${booking.name ? ' · ' + booking.name : ''}${paidInfo}`,
       '取消预订',
-      { confirmButtonText: '取消预订', cancelButtonText: '保留', type: 'warning', confirmButtonClass: 'el-button--danger' }
+      {
+        confirmButtonText: hasPaid ? '退费取消' : '取消预订',
+        cancelButtonText: '保留',
+        distinguishCancelAndClose: hasPaid,
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger',
+      }
     ).then(async () => {
-      try { await api.put(`/orders/${booking.id}/status?status=cancelled`); ElMessage.success('已取消预订'); await load() } catch { /* */ }
-    }).catch(() => {})
+      // 退费：后端自动恢复会员余额
+      if (hasPaid) {
+        try {
+          await api.put(`/orders/${booking.id}/status?status=refunded`)
+          ElMessage.success('已退款，余额已自动恢复')
+        } catch { /* */ }
+      } else {
+        try { await api.put(`/orders/${booking.id}/status?status=cancelled`); ElMessage.success('已取消') } catch { /* */ }
+      }
+      await load()
+    }).catch(async (action) => {
+      // 仅取消不退费
+      if (action === 'cancel') {
+        try { await api.put(`/orders/${booking.id}/status?status=cancelled`); ElMessage.success('已取消（不退费）'); await load() } catch { /* */ }
+      }
+    })
     return
   }
 
-  // 新预订
+  // 新预订 — 篮球场自动占2小时
+  const dur = field.duration || 1
+  if (dur > 1) {
+    // 检查后续时段是否都空闲
+    const nextH = parseInt(slot.split(':')[0])
+    let conflict = false
+    for (let i = 1; i < dur; i++) {
+      const nextSlot = `${String(nextH + i).padStart(2, '0')}:00`
+      if (getBooking(field.id, nextSlot) || isSlotPast(nextSlot)) { conflict = true; break }
+    }
+    if (conflict) {
+      ElMessage.warning(`篮球场需连续${dur}小时，后续时段不可用`)
+      return
+    }
+  }
+
   selectedField.value = field
   selectedSlot.value = slot
   orderForm.value = { phone: '', customer_name: '', paid_amount: field.price_per_hour || 0, payment_method: 'wechat', venue_id: venueId.value, order_type: 'field_book', remark: '', card_id: null }
@@ -315,10 +445,6 @@ function onCustomerTypeChange() {
   memberCards.value = []
 }
 
-function onPaymentChange(method) {
-  if (method === 'card_stored') orderForm.value.paid_amount = selectedField.value?.price_per_hour || 0
-}
-
 function onPhoneInput() {
   foundMember.value = null
   searched.value = false
@@ -332,10 +458,7 @@ async function searchMember() {
     const r = await getMembers({ keyword: orderForm.value.phone })
     foundMember.value = (r.members || [])[0] || null
     if (foundMember.value) {
-      try {
-        const cr = await api.get(`/members/${foundMember.value.id}/cards`)
-        memberCards.value = (cr.cards || []).filter(c => c.is_active && ((c.stored_value||0) > (c.used_value||0) || c.total_times > c.used_times))
-      } catch { memberCards.value = [] }
+      orderForm.value.payment_method = 'balance'
     } else {
       // 没找到会员 → 自动切散客
       customerType.value = 'walkin'
@@ -352,33 +475,19 @@ async function submitQuickOrder(status) {
 
     if (customerType.value === 'member' && foundMember.value) {
       memberId = foundMember.value.id
-      // 会员余额支付 → 扣余额
+      // 会员余额支付 → 校验并扣余额
       if (paymentMethod === 'balance') {
-        paymentMethod = 'card'
-        try {
-          await api.post(`/members/${memberId}/consume`, {
-            amount: orderForm.value.paid_amount,
-            remark: `场租 ${selectedField.value?.name} ${date.value} ${selectedSlot.value}`,
-          })
-        } catch { /* */ }
-      }
-      // 储值卡扣费
-      if (paymentMethod === 'card_stored') {
-        try {
-          await api.post(`/members/${memberId}/consume`, {
-            amount: orderForm.value.paid_amount,
-            use_card: true,
-            card_id: orderForm.value.card_id,
-            remark: `场租 ${selectedField.value?.name} ${date.value} ${selectedSlot.value}`,
-          })
-        } catch { /* */ }
+        if ((foundMember.value.balance || 0) < orderForm.value.paid_amount) {
+          ElMessage.warning('会员余额不足')
+          submitting.value = false
+          return
+        }
         paymentMethod = 'card'
       }
     }
 
     const remark = [
       customerType.value === 'walkin' ? `散客:${orderForm.value.customer_name || orderForm.value.phone}` : '',
-      orderForm.value.payment_method === 'card_stored' ? '储值卡扣费' : '',
       orderForm.value.remark,
     ].filter(Boolean).join(' | ')
 
@@ -387,11 +496,21 @@ async function submitQuickOrder(status) {
       member_id: memberId, order_type: 'field_book',
       book_date: date.value, start_time: selectedSlot.value,
       end_time: endSlot.value,
+      duration: selectedField.value?.duration || 1,
+      original_amount: orderForm.value.paid_amount,
       paid_amount: orderForm.value.paid_amount, payment_method: paymentMethod,
       remark,
     })
     if (created?.id) {
       try { await api.put(`/orders/${created.id}/status?status=${status}`) } catch { /* */ }
+      // 会员余额支付：扣余额
+      if (memberId && orderForm.value.payment_method === 'balance') {
+        const newBalance = (foundMember.value.balance || 0) - orderForm.value.paid_amount
+        try {
+          await api.put(`/members/${memberId}`, { balance: Math.max(0, newBalance), total_consumption: (foundMember.value.total_consumption || 0) + orderForm.value.paid_amount })
+          foundMember.value.balance = Math.max(0, newBalance)
+        } catch { /* */ }
+      }
     }
     showQuickOrder.value = false
     ElMessage.success(status === 'pending' ? '锁场成功' : '订场成功')
@@ -416,38 +535,62 @@ watch(() => venueStore.currentId, () => { load() })
 .date-display:hover { background: #ECF5FF; }
 
 /* ──── 看板主体 ──── */
-.board-wrap { border: 1px solid #EBEEF5; border-radius: 6px; background: #fff; overflow: hidden; }
-.board-scroll { overflow-x: auto; overflow-y: hidden; }
-.board-scroll::-webkit-scrollbar { height: 6px; }
-.board-scroll::-webkit-scrollbar-thumb { background: #C0C4CC; border-radius: 3px; }
+.board-wrap {
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 12px; background: rgba(255,255,255,0.7);
+  height: calc(100vh - 180px);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.board-scroll {
+  overflow-x: scroll; overflow-y: auto; flex: 1; min-height: 0;
+}
+.board-scroll::-webkit-scrollbar { width: 6px; height: 8px; }
+.board-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.04); border-radius: 4px; }
+.board-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+.board-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.35); }
 
-.board-table { display: inline-block; min-width: 100%; }
+.board-table { min-width: 1100px; }
 
-.board-row { display: flex; }
-.board-row:not(.header-row):hover { background: #F5F7FA; }
+.board-row {
+  display: flex; height: 58px; flex-shrink: 0;
+  background: #fff;
+}
+.board-row:hover { background: #F5F7FA; }
+.header-row:hover { background: #FAFAFA; }
+
+/* 固定表头 */
+.header-row { position: sticky; top: 0; z-index: 3; }
 
 /* 固定列 */
-.fixed-col { position: sticky; left: 0; z-index: 2; background: inherit; }
+.fixed-col {
+  position: sticky; left: 0; z-index: 2;
+  background: #fff !important;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.04);
+}
+.header-row .fixed-col { z-index: 4; background: #FAFAFA; }
 .header-col { background: #FAFAFA; font-weight: 600; }
 
+/* 子场地行 */
+.child-row .fixed-col { background: #FAFBFC; }
+
 .field-col {
-  width: 120px; min-width: 120px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 10px 6px; border-bottom: 1px solid #EBEEF5; border-right: 2px solid #DCDFE6;
-  font-size: 13px;
+  width: 130px; min-width: 130px; max-width: 130px;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  padding: 10px 14px; border-bottom: 1px solid #EBEEF5; border-right: 2px solid #DCDFE6;
+  font-size: 13px; flex-shrink: 0; box-sizing: border-box;
 }
 .header-row .field-col { font-size: 14px; border-bottom: 2px solid #DCDFE6; }
-.field-name { font-weight: 600; }
+.field-name { font-weight: 600; font-size: 14px; }
 .field-type { font-size: 11px; color: #909399; margin-top: 2px; }
 
 /* 时间列 */
 .time-col {
-  width: 76px; min-width: 76px;
+  flex: 1 0 56px;
   display: flex; align-items: center; justify-content: center;
-  padding: 10px 2px; font-size: 12px;
+  padding: 10px 2px; font-size: 12px; box-sizing: border-box;
   border-bottom: 1px solid #EBEEF5; border-right: 1px solid #F2F6FC;
 }
-
+.time-col:last-child { border-right: none; }
 .header-row .time-col {
   font-weight: 600; font-size: 13px; padding: 12px 2px;
   background: #FAFAFA; border-bottom: 2px solid #DCDFE6;
@@ -455,29 +598,53 @@ watch(() => venueStore.currentId, () => { load() })
 .time-col.peak { background: #FFF7E6; border-bottom-color: #E6A23C; }
 
 /* 单元格 */
-.slot-cell { cursor: default; height: 56px; transition: all 0.15s; }
-.slot-cell.free { background: #F0F9EB; cursor: pointer; }
-.slot-cell.free:hover { background: #C8E6C9; transform: scale(1.05); z-index: 1; box-shadow: 0 2px 8px rgba(103,194,58,0.3); border-radius: 4px; }
-.slot-cell.booked { background: #FFECEC; cursor: not-allowed; }
-.slot-cell.past { background: #F5F5F5; cursor: not-allowed; }
+.slot-cell {
+  cursor: default; height: 100%; transition: background 0.15s;
+  box-sizing: border-box;
+}
+.slot-cell.booked { background: #FFECEC; }
+.slot-cell.free { background: #E8F5E9; cursor: pointer; }
+.slot-cell.free:hover { background: #C8E6C9; }
+.slot-cell.booked { }
+.slot-cell.past { opacity: 0.4; }
 
 .cell-booked { color: #F56C6C; font-weight: 500; font-size: 11px; }
 .cell-locked { color: #909399; font-weight: 500; font-size: 11px; }
+.cell-child-booked { color: #E6A23C; font-weight: 500; font-size: 10px; }
 .cell-free { color: #67C23A; }
 .cell-past { color: #DDD; }
+
+/* ──── 子场地行 ──── */
+.child-rows { display: block; }
+.child-row {
+  height: 58px;
+  background: #fff;
+}
+.child-row .field-col { background: #fff; }
+.child-row:hover { background: #F5F7FA; }
+
+/* 父场行（有子场地的全场）：浅灰底色 */
+.parent-row { background: #F5F6F8; }
+.parent-row .fixed-col { background: #F5F6F8; }
+.parent-row:hover { background: #EDEFF2; }
+.parent-row:hover .fixed-col { background: #EDEFF2; }
+.field-price { font-size: 11px; color: #909399; margin-top: 2px; }
 
 .slot-cell.locked { background: #F0F0F0; cursor: pointer; }
 .slot-cell.locked:hover { background: #E0E0E0; }
 
 /* ──── 图例 ──── */
-.legend { display: flex; gap: 24px; padding: 12px 16px; margin-top: 12px; background: #FAFAFA; border-radius: 6px; }
-.legend span { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #606266; }
-.legend .dot { width: 14px; height: 14px; border-radius: 3px; }
-.dot.free { background: #F0F9EB; border: 1px solid #C8E6C9; }
+.legend {
+  display: flex; gap: 20px; padding: 8px 16px; flex-shrink: 0;
+  background: rgba(255,255,255,0.5); border-top: 1px solid rgba(0,0,0,0.06);
+  font-size: 12px; color: #86868B;
+}
+.legend span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.legend .dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.dot.free { background: #E8F5E9; border: 1px solid #A5D6A7; }
 .dot.locked-dot { background: #F0F0F0; border: 1px solid #C0C4CC; }
 .dot.booked { background: #FFECEC; border: 1px solid #FFA8A8; }
 .dot.past { background: #F5F5F5; border: 1px solid #DDD; }
-.dot.peak-dot { background: #FFF7E6; border: 1px solid #F5DAB1; }
 
 .order-preview { background: #F5F7FA; padding: 12px; border-radius: 4px; margin-bottom: 16px; }
 .order-preview p { margin: 4px 0; }

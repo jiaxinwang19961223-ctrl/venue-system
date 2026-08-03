@@ -47,7 +47,8 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         access_token=token,
         user={
             "id": user.id, "username": user.username,
-            "name": user.name, "role": user.role.value,
+            "name": user.name, "phone": user.phone,
+            "role": user.role.value,
             "venue_id": user.venue_id
         }
     )
@@ -85,6 +86,19 @@ def get_current_user(
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="用户不存在或已禁用")
     return user
+
+
+@router.get("/me")
+def get_me(user: User = Depends(get_current_user)):
+    """获取当前登录用户信息"""
+    return {
+        "id": user.id,
+        "username": user.username,
+        "name": user.name,
+        "phone": user.phone,
+        "role": user.role.value,
+        "venue_id": user.venue_id,
+    }
 
 
 def require_roles(*roles: UserRole):

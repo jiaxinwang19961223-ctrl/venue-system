@@ -9,22 +9,22 @@
       </div>
     </div>
 
-    <el-table :data="members" stripe size="small" style="min-width:1100px">
-      <el-table-column label="照片" width="55" fixed>
+    <el-table :data="members" stripe style="max-width:1100px">
+      <el-table-column label="照片" width="70" align="center">
         <template #default="{ row }">
-          <el-avatar v-if="row.face_image" :src="row.face_image" :size="36" shape="square" />
-          <el-avatar v-else :size="36" shape="square" style="background:#C0C4CC"><i class="ri-user-line"></i></el-avatar>
+          <el-avatar v-if="row.face_image" :src="row.face_image" :size="40" shape="square" style="cursor:pointer" @click="previewPhoto(row)" />
+          <el-avatar v-else :size="40" shape="square" style="background:#C0C4CC"><i class="ri-user-line"></i></el-avatar>
         </template>
       </el-table-column>
-      <el-table-column prop="name" label="姓名" width="80" fixed />
-      <el-table-column prop="phone" label="联系电话" width="130" />
-      <el-table-column label="卡片类型" width="100">
+      <el-table-column prop="name" label="姓名" width="100" />
+      <el-table-column prop="phone" label="联系电话" width="140" />
+      <el-table-column label="卡片类型" min-width="110">
         <template #default="{ row }">
           <el-tag v-if="row.card_types" size="small" type="success">{{ cardTypeLabel(row.card_types) }}</el-tag>
           <span v-else style="color:#C0C4CC">—</span>
         </template>
       </el-table-column>
-      <el-table-column label="有效期" width="120">
+      <el-table-column label="有效期" width="100" align="center">
         <template #default="{ row }">
           <span v-if="row.card_end_date" class="expire-tag" :class="expireClass(row.card_end_date)">
             {{ countdownDays(row.card_end_date) }}
@@ -32,29 +32,30 @@
           <span v-else style="color:#C0C4CC;font-size:12px">—</span>
         </template>
       </el-table-column>
-      <el-table-column label="储值/余额" width="110" sortable>
-        <template #default="{ row }"><strong>¥{{ row.balance?.toFixed(2) }}</strong></template>
+      <el-table-column label="储值/余额" width="120" sortable align="right">
+        <template #default="{ row }"><strong style="font-size:15px">¥{{ (row.balance || 0).toFixed(2) }}</strong></template>
       </el-table-column>
-      <el-table-column label="累计消费" width="100">
-        <template #default="{ row }">¥{{ Math.abs(row.total_consumption || 0).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="250" fixed="right">
+      <el-table-column label="操作" width="330" fixed="right">
         <template #default="{ row }">
           <div class="btn-row">
             <el-button size="small" type="warning" @click="showRecharge(row)">充值</el-button>
             <el-button size="small" type="success" @click="showIssueCard(row)">办卡</el-button>
             <el-button size="small" @click="showOrders(row)">记录</el-button>
             <el-button size="small" type="primary" @click="editMember(row)">编辑</el-button>
+            <el-popconfirm title="删除会员？" @confirm="doDeleteMember(row.id)"><template #reference><el-button size="small" type="danger" text>删除</el-button></template></el-popconfirm>
           </div>
         </template>
       </el-table-column>
     </el-table>
+    <div style="display:flex;justify-content:center;margin-top:16px" v-if="total > pageSize">
+      <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" background small @current-change="load" />
+    </div>
 
     <!-- ──── 新增/编辑（含人脸拍照）──── -->
-    <el-dialog :title="editingId ? '编辑会员' : '新增会员'" v-model="showDialog" width="730px" @closed="stopCamera">
+    <el-dialog :title="editingId ? '编辑会员' : '新增会员'" v-model="showDialog" width="820px" @closed="stopCamera">
       <el-row :gutter="20">
         <!-- 左侧：基本信息 -->
-        <el-col :span="14">
+        <el-col :span="13">
           <el-form :model="form" label-width="80px">
             <el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item>
             <el-form-item label="手机号"><el-input v-model="form.phone" /></el-form-item>
@@ -65,13 +66,13 @@
             <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" rows="2" /></el-form-item>
             <el-form-item label="办卡" v-if="!editingId">
               <el-select v-model="form.card_type_id" clearable placeholder="选卡种（可选）" style="width:100%">
-                <el-option v-for="ct in cardTypes" :key="ct.id" :label="ct.name" :value="ct.id" />
+                <el-option v-for="ct in venueCardTypes" :key="ct.id" :label="ctLabel(ct)" :value="ct.id" />
               </el-select>
             </el-form-item>
           </el-form>
         </el-col>
         <!-- 右侧：人脸拍照 -->
-        <el-col :span="10">
+        <el-col :span="6">
           <div class="face-section">
             <p class="face-title"><i class="ri-camera-line"></i> 人脸录入</p>
             <div class="face-camera-mini">
@@ -112,10 +113,10 @@
     <!-- ──── 人脸补拍 ──── -->
     <el-dialog title="人脸补拍" v-model="showRetakeDialog" width="420px" @closed="stopCamera">
       <p><strong>会员：</strong>{{ retakeMember?.name }}</p>
-      <div class="face-camera-mini" style="width:200px;height:150px;margin:10px auto">
-        <video ref="retakeVideoRef" autoplay playsinline width="200" height="150"></video>
-        <canvas ref="retakeCanvasRef" width="200" height="150" style="position:absolute;top:-9999px;left:-9999px"></canvas>
-        <img v-if="retakePreview" :src="retakePreview" class="face-preview-mini" style="width:200px;height:150px" />
+      <div class="face-camera-mini" style="width:320px;height:240px;margin:10px auto">
+        <video ref="retakeVideoRef" autoplay playsinline width="320" height="240"></video>
+        <canvas ref="retakeCanvasRef" width="320" height="240" style="position:absolute;top:-9999px;left:-9999px"></canvas>
+        <img v-if="retakePreview" :src="retakePreview" class="face-preview-mini" style="width:320px;height:240px" />
       </div>
       <div style="text-align:center;margin-top:10px">
         <el-button size="small" @click="startRetakeCamera" :disabled="retakeCameraActive">打开摄像头</el-button>
@@ -158,11 +159,23 @@
     </el-dialog>
 
     <!-- ──── 充值 ──── -->
-    <el-dialog title="余额充值" v-model="showRechargeDialog" width="400px">
+    <el-dialog title="余额充值" v-model="showRechargeDialog" width="460px">
       <div class="info-box"><p><strong>会员：</strong>{{ rechargeMember?.name }}</p><p><strong>余额：</strong>¥{{ rechargeMember?.balance?.toFixed(2) }}</p></div>
       <el-form :model="rechargeForm" label-width="80px">
-        <el-form-item label="金额"><el-input-number v-model="rechargeForm.amount" :min="1" :step="100" style="width:100%" /></el-form-item>
-        <el-form-item label="支付"><el-radio-group v-model="rechargeForm.payment_method"><el-radio label="wechat">微信</el-radio><el-radio label="cash">现金</el-radio></el-radio-group></el-form-item>
+        <el-form-item label="快捷卡种">
+          <el-select v-model="rechargeForm.card_type_id" style="width:100%" placeholder="选择卡种（可选）" clearable @change="onRechargeCardChange">
+            <el-option v-for="ct in rechargeCardTypes" :key="ct.id" :label="ctLabel(ct)" :value="ct.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="rechargeCardType==='stored'" label="充值金额">
+          <el-input-number v-model="rechargeForm.amount" :min="1" :step="100" style="width:100%" controls-position="right" />
+          <div v-if="rechargeForm.bonus" style="font-size:12px;color:#E6A23C;margin-top:4px">🎁 赠送 {{ rechargeForm.bonus }} 元，到账 {{ rechargeForm.amount + rechargeForm.bonus }} 元</div>
+        </el-form-item>
+        <el-form-item v-else-if="rechargeCardType" label="卡类型">
+          <el-tag type="warning" size="large">{{ {month:'月卡',season:'季卡',year:'年卡',custom:'定制'}[rechargeCardType] || rechargeCardType }}</el-tag>
+          <span style="margin-left:8px;color:#909399">{{ rechargeCardName }}</span>
+        </el-form-item>
+        <el-form-item label="支付"><el-radio-group v-model="rechargeForm.payment_method"><el-radio label="wechat">扫码</el-radio><el-radio label="cash">现金</el-radio></el-radio-group></el-form-item>
       </el-form>
       <template #footer><el-button @click="showRechargeDialog = false">取消</el-button><el-button type="primary" @click="handleRecharge">确认</el-button></template>
     </el-dialog>
@@ -171,7 +184,7 @@
     <el-dialog title="办理会员卡" v-model="showIssueCardDialog" width="450px">
       <p><strong>会员：</strong>{{ rechargeMember?.name }}</p>
       <el-form :model="cardForm" label-width="80px">
-        <el-form-item label="卡种"><el-select v-model="cardForm.card_type_id" style="width:100%" @change="onCardTypeChange"><el-option v-for="ct in cardTypes" :key="ct.id" :label="ct.name" :value="ct.id" /></el-select></el-form-item>
+        <el-form-item label="卡种"><el-select v-model="cardForm.card_type_id" style="width:100%" @change="onCardTypeChange"><el-option v-for="ct in venueCardTypes" :key="ct.id" :label="ctLabel(ct)" :value="ct.id" /></el-select></el-form-item>
         <el-form-item label="售价"><el-input-number v-model="cardForm.price" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="生效"><el-date-picker v-model="cardForm.start_date" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
       </el-form>
@@ -179,23 +192,89 @@
     </el-dialog>
 
     <!-- ──── 消费记录 ──── -->
-    <el-dialog title="消费记录" v-model="showOrdersDialog" width="700px">
-      <p><strong>{{ consumeMember?.name }}</strong> | 累计消费：¥{{ (consumeMember?.total_consumption || 0).toFixed(2) }}</p>
-      <el-table :data="memberOrders" stripe max-height="400">
-        <el-table-column prop="order_no" label="订单号" width="170" />
-        <el-table-column label="类型" width="80"><template #default="{ row }">{{ { field_book:'场地', walk_in:'散客', card_recharge:'充值', course_book:'课程' }[row.order_type] }}</template></el-table-column>
-        <el-table-column prop="created_at" label="时间" width="160" />
-        <el-table-column prop="paid_amount" label="金额" width="80"><template #default="{ row }">¥{{ row.paid_amount?.toFixed(2) }}</template></el-table-column>
-        <el-table-column prop="payment_method" label="支付" width="70"><template #default="{ row }">{{ { wechat:'微信', cash:'现金', card:'会员卡' }[row.payment_method]||row.payment_method }}</template></el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="100" />
+    <el-dialog title="消费记录" v-model="showOrdersDialog" width="820px">
+      <transition name="el-fade-in-linear" mode="out-in">
+        <div v-if="ordersLoading" key="loading" class="orders-loading">
+          <i class="el-icon-loading" style="font-size:32px;color:#409EFF"></i>
+          <p style="color:#909399;margin-top:12px">加载中...</p>
+        </div>
+        <div v-else key="content" class="orders-content fade-in">
+      <div class="orders-summary">
+        <span><strong>{{ consumeMember?.name }}</strong></span>
+        <el-tag type="danger" effect="plain">累计消费 ¥{{ (consumeMember?.total_consumption || 0).toFixed(2) }}</el-tag>
+      </div>
+      <el-table :data="memberOrders" stripe max-height="400" size="small">
+        <el-table-column prop="order_no" label="订单号" width="180" />
+        <el-table-column label="类型" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.status==='refunded'" size="small" type="success">退费</el-tag>
+            <el-tag v-else-if="row.order_type==='card_recharge'" size="small" type="warning">充值</el-tag>
+            <el-tag v-else size="small" type="danger">{{ { field_book:'订场', walk_in:'消费', course_book:'课程' }[row.order_type] || '消费' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="created_at" label="时间" width="155" />
+        <el-table-column label="金额" width="100" align="right">
+          <template #default="{ row }">
+            <span :style="{ color: row.status==='refunded'?'#67C23A':(row.order_type==='card_recharge'?'#409EFF':'#F56C6C'), fontWeight:'600' }">
+              {{ (row.status==='refunded'||row.order_type==='card_recharge')?'+':'−' }}¥{{ Math.abs(row.paid_amount||0).toFixed(2) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="备注" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.status==='refunded'" style="color:#67C23A">[退费]</span>
+            <span v-else-if="row.remark" style="color:#909399">{{ row.remark }}</span>
+            <span v-else style="color:#C0C4CC">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" type="warning" @click="showAdjust(row)">金额调整</el-button>
+          </template>
+        </el-table-column>
       </el-table>
+      </div>
+      </transition>
+    </el-dialog>
+
+    <!-- ──── 金额调整 ──── -->
+    <el-dialog title="金额调整" v-model="showAdjustDialog" width="400px">
+      <p><strong>会员：</strong>{{ consumeMember?.name }}</p>
+      <p v-if="adjustOrder">订单：{{ adjustOrder.order_no }} · 原金额 ¥{{ (adjustOrder.paid_amount || 0).toFixed(2) }}</p>
+      <el-form :model="adjustForm" label-width="80px" style="margin-top:16px">
+        <el-form-item label="调整类型">
+          <el-radio-group v-model="adjustForm.type">
+            <el-radio label="refund">退费 (+)</el-radio>
+            <el-radio label="charge">补扣 (-)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="调整金额">
+          <el-input-number v-model="adjustForm.amount" :min="0" :precision="2" style="width:100%" controls-position="right" />
+        </el-form-item>
+        <el-form-item label="原因">
+          <el-input v-model="adjustForm.remark" placeholder="调整原因" />
+        </el-form-item>
+      </el-form>
+      <div v-if="adjustForm.amount > 0" style="background:#F5F7FA;padding:10px;border-radius:8px;margin-top:8px">
+        <span v-if="adjustForm.type === 'refund'" style="color:#67C23A">将退回 ¥{{ adjustForm.amount }}，余额 +{{ adjustForm.amount }}</span>
+        <span v-else style="color:#F56C6C">将扣除 ¥{{ adjustForm.amount }}，余额 -{{ adjustForm.amount }}</span>
+      </div>
+      <template #footer>
+        <el-button @click="showAdjustDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleAdjust">确认调整</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 照片预览 -->
+    <el-dialog :title="photoPreview?.name||'照片'" v-model="showPhotoPreview" width="360px" @closed="photoPreview=null">
+      <img v-if="photoPreview" :src="photoPreview.src" style="width:100%;border-radius:8px" />
     </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { getMembers, getMember, createMember, updateMember, getMemberCards, createCard } from '../api'
+import { getMembers, getMember, createMember, updateMember, deleteMember, getMemberCards, createCard } from '../api'
 import api from '../api'
 import * as faceapi from 'face-api.js'
 import { useVenueStore } from '../stores/venue'
@@ -203,10 +282,23 @@ import { ElMessage } from 'element-plus'
 
 const venueStore = useVenueStore()
 const members = ref([])
+const photoPreview = ref(null)
+const showPhotoPreview = ref(false)
+function previewPhoto(row) {
+  if (row.face_image) { photoPreview.value = { name: row.name, src: row.face_image }; showPhotoPreview.value = true }
+}
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 const cardTypes = ref([])
+const venueCardTypes = computed(() => cardTypes.value.filter(ct => !ct.venue_id || ct.venue_id === venueStore.currentId))
 const cards = ref([])
 const consumeCards = ref([])
 const memberOrders = ref([])
+const ordersLoading = ref(false)
+const showAdjustDialog = ref(false)
+const adjustOrder = ref(null)
+const adjustForm = ref({ type: 'refund', amount: 0, remark: '' })
 const keyword = ref('')
 
 // 弹窗状态
@@ -224,7 +316,18 @@ const retakeMember = ref(null)
 
 // 表单
 const form = ref({ name: '', phone: '', gender: '', birthday: '', remark: '', venue_id: 0 })
-const rechargeForm = ref({ amount: 0, payment_method: 'wechat' })
+const rechargeForm = ref({ amount: 0, payment_method: 'wechat', card_type_id: null, bonus: 0 })
+const rechargeCardTypes = computed(() =>
+  cardTypes.value.filter(ct => !ct.venue_id || ct.venue_id === venueStore.currentId)
+)
+const rechargeCardType = computed(() => {
+  const ct = cardTypes.value.find(t => t.id === rechargeForm.value.card_type_id)
+  return ct ? ct.category : null
+})
+const rechargeCardName = computed(() => {
+  const ct = cardTypes.value.find(t => t.id === rechargeForm.value.card_type_id)
+  return ct ? `${ctLabel(ct)} · ${ct.valid_days}天` : ''
+})
 const consumeForm = ref({ amount: 0, use_card: false, card_id: null, remark: '' })
 const cardForm = ref({ card_type_id: null, total_times: 0, price: 0, start_date: '', end_date: '', member_id: 0, card_type: '' })
 
@@ -251,7 +354,7 @@ let retakeStream = null
 // ──── 摄像头 ────
 async function doStartCamera(videoEl, setActive) {
   try {
-    const s = await navigator.mediaDevices.getUserMedia({ video: { width: 200, height: 150, facingMode: 'user' } })
+    const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } })
     if (videoEl) videoEl.srcObject = s
     setActive(true)
     return s
@@ -270,16 +373,15 @@ async function doCapture(videoEl, canvasEl, setPreview, setDescriptor, setStatus
   if (video.readyState < 2) { setStatus('摄像头未就绪，请稍等'); return }
 
   const ctx = canvas.getContext('2d')
-  canvas.width = video.videoWidth || 180
-  canvas.height = video.videoHeight || 135
+  canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 480
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-  const img = canvas.toDataURL('image/jpeg', 0.85)
+  const img = canvas.toDataURL('image/jpeg', 1.0)
   setPreview(img)
   if (s) { s.getTracks().forEach(t => t.stop()) }
 
   setStatus('正在提取人脸特征...')
   try {
-    const d = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.4 }))
+    const d = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 }))
       .withFaceLandmarks(true).withFaceDescriptor()
     if (d) {
       setDescriptor(JSON.stringify(Array.from(d.descriptor)))
@@ -319,7 +421,7 @@ async function editMember(m) {
   // 加载会员卡
   try {
     const res = await getMemberCards(m.id)
-    editingCards.value = (res.cards || []).filter(c => c.is_active)
+    editingCards.value = (res.cards || []).filter(c => c.is_active || c.stored_value > 0 || c.total_times > 0)
     if (editingCards.value.length > 0) {
       const c = editingCards.value[0]
       editingCardId.value = c.id
@@ -354,8 +456,24 @@ function showAdd() {
   facePreview.value = null; faceDescriptor.value = null; faceStatus.value = ''; faceOk.value = false
   showDialog.value = true
 }
-async function load() { try { members.value = (await getMembers({ keyword: keyword.value, venue_id: venueStore.currentId })).members || [] } catch { /* */ } }
-async function search() { keyword.value = keyword.value.trim(); await load() }
+async function doDeleteMember(id) {
+  try {
+    await deleteMember(id)
+    await load()
+    ElMessage.success('已删除')
+  } catch (e) {
+    console.error('删除失败', e)
+    ElMessage.error('删除失败')
+  }
+}
+async function load() {
+  try {
+    const res = await getMembers({ keyword: keyword.value, venue_id: venueStore.currentId, page: page.value, page_size: pageSize.value })
+    members.value = res.members || []
+    total.value = res.total || 0
+  } catch { /* */ }
+}
+async function search() { keyword.value = keyword.value.trim(); page.value = 1; await load() }
 
 async function handleSave() {
   if (!form.value.name) { ElMessage.warning('请输入姓名'); return }
@@ -388,6 +506,7 @@ async function handleSave() {
             end_date: editCardEndDate.value,
             remark: '手动调整有效期',
           })
+          ElMessage.success('卡有效期已更新')
         } catch (e) { console.error('有效期更新失败', e) }
       }
     } else {
@@ -406,6 +525,9 @@ async function handleSave() {
             start_date: new Date().toISOString().slice(0, 10),
             end_date: end.toISOString().slice(0, 10),
           })
+          if (ct.category === 'stored') {
+            await updateMember(memberId, { balance: (data.balance||0) + ct.price + (ct.bonus_amount||0) })
+          }
         } catch (e) { console.error('办卡失败', e) }
       }
     }
@@ -417,23 +539,150 @@ async function handleSave() {
 }
 
 // ──── 充值/办卡/签到/记录 ────
-function showRecharge(m) { rechargeMember.value = m; rechargeForm.value = { amount: 0, payment_method: 'wechat' }; showRechargeDialog.value = true }
+function ctLabel(ct) { return ct.name + (ct.bonus_amount ? ` (赠${ct.bonus_amount})` : '') }
+async function onRechargeCardChange(id) {
+  const ct = cardTypes.value.find(t => t.id === id)
+  if (!ct) { rechargeForm.value.bonus = 0; return }
+  if (ct.category === 'stored') {
+    rechargeForm.value.amount = ct.price
+    rechargeForm.value.bonus = ct.bonus_amount || 0
+  } else {
+    // 期卡：停用旧卡 + 直接办新卡
+    showRechargeDialog.value = false
+    try {
+      const existingCards = await getMemberCards(rechargeMember.value.id)
+      for (const c of (existingCards.cards || [])) {
+        if (c.is_active) await api.put(`/members/${rechargeMember.value.id}/cards/${c.id}/validity`, { end_date: new Date().toISOString().slice(0,10), remark: '更换卡种' })
+      }
+    } catch { /* */ }
+    const end = new Date(); end.setDate(end.getDate() + ct.valid_days)
+    createCard({
+      member_id: rechargeMember.value.id,
+      card_type: ct.category, total_times: ct.total_times,
+      price: ct.price, start_date: new Date().toISOString().slice(0,10),
+      end_date: end.toISOString().slice(0,10),
+    }).then(() => {
+      load()
+      ElMessage.success(`已办理${ctLabel(ct)}`)
+    }).catch(() => {})
+  }
+}
+function showRecharge(m) {
+  rechargeMember.value = m
+  rechargeForm.value = { amount: 0, payment_method: 'wechat', card_type_id: null, bonus: 0 }
+  showRechargeDialog.value = true
+}
 async function handleRecharge() {
+  if (rechargeCardType.value && rechargeCardType.value !== 'stored') {
+    // 期卡已在 onRechargeCardChange 中处理
+    return
+  }
+  if (!rechargeForm.value.amount) { ElMessage.warning('请输入金额'); return }
   try {
-    await api.post('/orders', { venue_id: rechargeMember.value.venue_id||1, member_id: rechargeMember.value.id, order_type: 'card_recharge', paid_amount: rechargeForm.value.amount, payment_method: rechargeForm.value.payment_method })
-    await updateMember(rechargeMember.value.id, { balance: (rechargeMember.value.balance||0) + rechargeForm.value.amount })
-    showRechargeDialog.value = false; await load(); ElMessage.success('充值成功')
+    const totalAmount = rechargeForm.value.amount + (rechargeForm.value.bonus || 0)
+    await api.post('/orders', {
+      venue_id: rechargeMember.value.venue_id||1,
+      member_id: rechargeMember.value.id,
+      order_type: 'card_recharge',
+      paid_amount: rechargeForm.value.amount,
+      payment_method: rechargeForm.value.payment_method,
+      remark: rechargeForm.value.bonus ? `充值${rechargeForm.value.amount}赠${rechargeForm.value.bonus}` : '',
+    })
+    await updateMember(rechargeMember.value.id, { balance: (rechargeMember.value.balance||0) + totalAmount })
+    showRechargeDialog.value = false; await load(); ElMessage.success(`充值成功，到账￥${totalAmount}`)
   } catch { /* */ }
 }
 
 function showIssueCard(m) { rechargeMember.value = m; cardForm.value = { card_type_id:null, total_times:0, price:0, start_date: new Date().toISOString().slice(0,10), end_date:'', member_id: m.id, card_type:'times' }; showIssueCardDialog.value = true }
 function onCardTypeChange(id) { const ct = cardTypes.value.find(t=>t.id===id); if(ct){ cardForm.value.price=ct.price; cardForm.value.total_times=ct.total_times; cardForm.value.card_type=ct.category; const e=new Date(); e.setDate(e.getDate()+ct.valid_days); cardForm.value.end_date=e.toISOString().slice(0,10) } }
-async function handleIssueCard() { try { await createCard({ member_id:rechargeMember.value.id, card_type: cardForm.value.card_type||'times', total_times:cardForm.value.total_times, price:cardForm.value.price, start_date:cardForm.value.start_date, end_date:cardForm.value.end_date }); showIssueCardDialog.value=false; ElMessage.success('办卡成功') } catch { /* */ } }
+async function handleIssueCard() {
+  try {
+    // 停用该会员所有旧卡
+    const existingCards = await getMemberCards(rechargeMember.value.id)
+    for (const c of (existingCards.cards || [])) {
+      if (c.is_active) await api.put(`/members/${rechargeMember.value.id}/cards/${c.id}/validity`, { end_date: new Date().toISOString().slice(0,10), remark: '更换卡种' })
+    }
+    await createCard({ member_id:rechargeMember.value.id, card_type: cardForm.value.card_type||'times', total_times:cardForm.value.total_times, price:cardForm.value.price, start_date:cardForm.value.start_date, end_date:cardForm.value.end_date })
+    if (cardForm.value.card_type === 'stored') {
+      const bonus = cardTypes.value.find(t=>t.id===cardForm.value.card_type_id)?.bonus_amount || 0
+      await updateMember(rechargeMember.value.id, { balance: (rechargeMember.value.balance||0) + cardForm.value.price + bonus })
+      rechargeMember.value.balance = (rechargeMember.value.balance||0) + cardForm.value.price + bonus
+    }
+    showIssueCardDialog.value=false; await load(); ElMessage.success('办卡成功')
+  } catch { /* */ }
+}
 
 async function showConsume(m) { consumeMember.value=m; consumeForm.value={amount:0,use_card:false,card_id:null,remark:''}; try{consumeCards.value=(await getMemberCards(m.id)).cards?.filter(c=>c.is_active&&((c.stored_value||0)>(c.used_value||0)||c.total_times>c.used_times))||[]}catch{consumeCards.value=[]}; showConsumeDialog.value=true }
 async function handleConsume() { try { await api.post(`/members/${consumeMember.value.id}/consume`, consumeForm.value); showConsumeDialog.value=false; await load(); ElMessage.success('扣费成功') } catch { /* */ } }
 
-async function showOrders(m) { consumeMember.value=m; try{memberOrders.value=(await api.get(`/members/${m.id}/orders`)).orders||[]}catch{memberOrders.value=[]}; showOrdersDialog.value=true }
+async function showOrders(m) {
+  consumeMember.value = m
+  memberOrders.value = []
+  showOrdersDialog.value = true
+  ordersLoading.value = true
+  try {
+    memberOrders.value = (await api.get(`/members/${m.id}/orders`, { params: { limit: 100 } })).orders || []
+    // 从实际订单计算累计消费
+    const total = memberOrders.value.reduce((sum, o) => {
+      return sum + (o.status === 'refunded' ? -(o.paid_amount || 0) : (o.paid_amount || 0))
+    }, 0)
+    consumeMember.value.total_consumption = total
+  } catch { memberOrders.value = [] }
+  ordersLoading.value = false
+}
+function showAdjust(row) {
+  adjustOrder.value = row
+  adjustForm.value = { type: 'refund', amount: 0, remark: '' }
+  showAdjustDialog.value = true
+}
+async function handleAdjust() {
+  if (!adjustForm.value.amount) { ElMessage.warning('请输入金额'); return }
+  const isRefund = adjustForm.value.type === 'refund'
+  const amount = adjustForm.value.amount
+  try {
+    // 退费：恢复余额，创建退款记录
+    if (isRefund) {
+      const res = await api.post('/orders', {
+        venue_id: consumeMember.value.venue_id || 1,
+        member_id: consumeMember.value.id,
+        order_type: 'walk_in',
+        paid_amount: amount, original_amount: amount,
+        payment_method: 'card',
+        remark: adjustForm.value.remark || '手动退费调整',
+      })
+      if (res?.id) await api.put(`/orders/${res.id}/status?status=refunded`)
+      await api.put(`/members/${consumeMember.value.id}`, {
+        balance: (consumeMember.value.balance || 0) + amount,
+      })
+    } else {
+      if ((consumeMember.value.balance || 0) < amount) { ElMessage.warning('余额不足'); return }
+      const res = await api.post('/orders', {
+        venue_id: consumeMember.value.venue_id || 1,
+        member_id: consumeMember.value.id,
+        order_type: 'walk_in',
+        paid_amount: amount, original_amount: amount,
+        payment_method: 'card',
+        remark: adjustForm.value.remark || '手动补扣调整',
+      })
+      if (res?.id) await api.put(`/orders/${res.id}/status?status=checked_in`)
+      const newTotal = (consumeMember.value.total_consumption || 0) + amount
+      await api.put(`/members/${consumeMember.value.id}`, {
+        balance: Math.max(0, (consumeMember.value.balance || 0) - amount),
+        total_consumption: newTotal,
+      })
+    }
+    showAdjustDialog.value = false
+    consumeMember.value.balance = (consumeMember.value.balance || 0) + (isRefund ? amount : -amount)
+    // 退费=减少累计消费，补扣=增加累计消费
+    const totalChange = isRefund ? -amount : amount
+    await api.put(`/members/${consumeMember.value.id}`, {
+      total_consumption: Math.max(0, (consumeMember.value.total_consumption || 0) + totalChange),
+    })
+    memberOrders.value = (await api.get(`/members/${consumeMember.value.id}/orders`)).orders || []
+    await load()
+    ElMessage.success(isRefund ? '退费成功' : '补扣成功')
+  } catch { /* */ }
+}
 
 function cardTypeLabel(types) {
   if (!types) return ''
@@ -495,12 +744,12 @@ onBeforeUnmount(() => { if (countdownTimer) clearInterval(countdownTimer) })
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
 .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.btn-row { display: flex; gap: 4px; flex-wrap: nowrap; white-space: nowrap; }
+.btn-row { display: flex; gap: 6px; flex-wrap: nowrap; white-space: nowrap; padding: 4px 0; }
 .info-box { background: #F5F7FA; padding: 12px; border-radius: 4px; margin-bottom: 16px; }
 .info-box p { margin: 4px 0; }
 .face-section { border: 1px dashed #DCDFE6; border-radius: 8px; padding: 10px; text-align: center; }
 .face-title { margin: 0 0 8px; font-size: 13px; color: #606266; }
-.face-camera-mini { position: relative; width: 180px; height: 135px; margin: 0 auto; background: #000; border-radius: 4px; overflow: hidden; }
+.face-camera-mini { position: relative; width: 320px; height: 240px; margin: 0 auto; background: #000; border-radius: 4px; overflow: hidden; }
 .face-camera-mini video, .face-preview-mini { width: 100%; height: 100%; object-fit: cover; }
 .face-btns { margin-top: 8px; display: flex; gap: 5px; justify-content: center; }
 .face-status { font-size: 12px; margin: 6px 0 0; }
@@ -518,4 +767,11 @@ onBeforeUnmount(() => { if (countdownTimer) clearInterval(countdownTimer) })
 .expire-tag.soon   { color: #409EFF; border-color: #409EFF; background: #ecf5ff; }
 .expire-tag.urgent { color: #E6A23C; border-color: #E6A23C; background: #fdf6ec; font-weight: 700; }
 .expire-tag.expired{ color: #F56C6C; border-color: #F56C6C; background: #fef0f0; font-weight: 700; }
+.orders-summary { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.orders-content { animation: fadeSlideIn 0.35s ease; }
+.orders-loading { text-align: center; padding: 60px 0; }
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 </style>
